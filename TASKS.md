@@ -53,11 +53,11 @@ Define the database schema and implement the first two backend modules.
 
 ---
 
-## Task 4: Convex Backend — Transactions & Receipts
+## Task 4: Convex Backend — Transactions & Receipts ✅
 
 Implement the transaction and receipt backend modules.
 
-- [ ] Implement `convex/transactions.ts`:
+- [x] Implement `convex/transactions.ts`:
   - `create` — computes `shareholderLoanDelta` per type rules, stores transaction
   - `update` — recomputes delta on save
   - `remove` — hard delete
@@ -66,8 +66,8 @@ Implement the transaction and receipt backend modules.
   - `getShareholderLoanBalance` — `SUM(shareholderLoanDelta)`
   - `getShareholderLoanLedger` — all non-zero delta transactions, sorted ASC
   - `getSummary` — aggregated totals for a date range
-- [ ] Implement `convex/receipts.ts`: `generateUploadUrl()`, `getReceiptUrl(storageId)`
-- [ ] All mutations validate user ownership
+- [x] Implement `convex/receipts.ts`: `generateUploadUrl()`, `getReceiptUrl(storageId)`
+- [x] All mutations validate user ownership
 
 **Acceptance criteria:** All functions deploy. Shareholder loan delta is correctly computed for every transaction type. `getShareholderLoanBalance` returns the correct running sum. `getSummary` returns correct aggregates. Receipt upload URL generation works.
 
