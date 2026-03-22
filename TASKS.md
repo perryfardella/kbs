@@ -4,21 +4,21 @@ Each task is a self-contained session. Complete them in order.
 
 ---
 
-## Task 1: Project Scaffolding & Configuration
+## Task 1: Project Scaffolding & Configuration ✅
 
 Set up the foundational project structure.
 
-- [ ] Initialize Next.js (App Router, TypeScript, Tailwind CSS)
-- [ ] Install and configure shadcn/ui
-- [ ] Install and configure Convex (`convex dev` init)
-- [ ] Install `@clerk/nextjs`
-- [ ] Create `.env.local.example` documenting required env vars (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CONVEX_URL`)
-- [ ] Set up Google Fonts (Playfair Display, DM Sans) in root layout
-- [ ] Configure Tailwind theme with the full design system palette (bg, surface, border, accent, text-primary, text-muted, positive, negative, badge colours)
-- [ ] Create `app/manifest.ts` for PWA
-- [ ] Add iOS-specific meta tags in root `layout.tsx`
-- [ ] Create placeholder PWA icons (`icon-192.png`, `icon-512.png`)
-- [ ] Initialize git repo with `.gitignore`
+- [x] Initialize Next.js (App Router, TypeScript, Tailwind CSS)
+- [x] Install and configure shadcn/ui
+- [x] Install and configure Convex (`convex dev` init)
+- [x] Install `@clerk/nextjs`
+- [x] Create `.env.local.example` documenting required env vars (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CONVEX_URL`)
+- [x] Set up Google Fonts (Playfair Display, DM Sans) in root layout
+- [x] Configure Tailwind theme with the full design system palette (bg, surface, border, accent, text-primary, text-muted, positive, negative, badge colours)
+- [x] Create `app/manifest.ts` for PWA
+- [x] Add iOS-specific meta tags in root `layout.tsx`
+- [x] Create placeholder PWA icons (`icon-192.png`, `icon-512.png`)
+- [x] Initialize git repo with `.gitignore`
 
 **Acceptance criteria:** `npm run dev` starts cleanly. Tailwind theme tokens render correctly. `/manifest.webmanifest` returns valid JSON. Git repo initialized with first commit.
 
