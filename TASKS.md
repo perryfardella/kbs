@@ -152,15 +152,15 @@ Build the filterable transaction list.
 
 ---
 
-## Task 10: Transaction Detail / Edit (`/transactions/[id]`)
+## Task 10: Transaction Detail / Edit (`/transactions/[id]`) ✅
 
 Build the view/edit screen for a single transaction.
 
-- [ ] Same form layout as `/add`, pre-populated with existing data
-- [ ] Receipt image displayed full-width if present (tap to view full size)
-- [ ] Save changes button — updates transaction (recomputes delta)
-- [ ] Delete button with confirmation dialog
-- [ ] On delete: remove transaction, navigate back
+- [x] Same form layout as `/add`, pre-populated with existing data
+- [x] Receipt image displayed full-width if present (tap to view full size)
+- [x] Save changes button — updates transaction (recomputes delta)
+- [x] Delete button with confirmation dialog
+- [x] On delete: remove transaction, navigate back
 
 **Acceptance criteria:** Existing transactions load correctly into the form. Edits save and shareholder loan delta recomputes. Receipt displays and is viewable full-size. Delete requires confirmation and removes the transaction.
 
