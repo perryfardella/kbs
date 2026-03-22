@@ -73,15 +73,15 @@ Implement the transaction and receipt backend modules.
 
 ---
 
-## Task 5: Onboarding Flow
+## Task 5: Onboarding Flow ✅
 
 Build the first-run experience.
 
-- [ ] Build `/onboarding` page: form with Owner Name, Company Name, Fiscal Year End (month + day pickers)
-- [ ] On submit: create `settings` record + seed default categories, then redirect to `/`
-- [ ] If settings already exist for the user, redirect to `/`
-- [ ] Update `/login` post-auth redirect: check for settings → no settings → `/onboarding`, else → `/`
-- [ ] Style to match dark theme, proper input modes
+- [x] Build `/onboarding` page: form with Owner Name, Company Name, Fiscal Year End (month + day pickers)
+- [x] On submit: create `settings` record + seed default categories, then redirect to `/`
+- [x] If settings already exist for the user, redirect to `/`
+- [x] Update `/login` post-auth redirect: check for settings → no settings → `/onboarding`, else → `/`
+- [x] Style to match dark theme, proper input modes
 
 **Acceptance criteria:** New user signs in → lands on `/onboarding` → fills form → submits → redirected to `/` with settings and 23 default categories in the database. Returning user skips onboarding.
 
