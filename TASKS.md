@@ -39,15 +39,15 @@ Wire up Clerk + Convex so that authenticated sessions work end-to-end.
 
 ---
 
-## Task 3: Convex Schema & Backend — Settings and Categories
+## Task 3: Convex Schema & Backend — Settings and Categories ✅
 
 Define the database schema and implement the first two backend modules.
 
-- [ ] Define Convex schema (`convex/schema.ts`) for `settings`, `categories`, and `transactions` tables with all fields and indexes from the spec
-- [ ] Implement `convex/settings.ts`: `get(userId)`, `upsert(userId, data)`
-- [ ] Implement `convex/categories.ts`: `list(userId)`, `create(userId, {name, realm})`, `archive(categoryId)`, `delete(categoryId)`, `seedDefaults(userId)`
-- [ ] Populate the full default categories list (13 business, 10 personal) in the seed function
-- [ ] All mutations validate that the calling user owns the record being modified
+- [x] Define Convex schema (`convex/schema.ts`) for `settings`, `categories`, and `transactions` tables with all fields and indexes from the spec
+- [x] Implement `convex/settings.ts`: `get(userId)`, `upsert(userId, data)`
+- [x] Implement `convex/categories.ts`: `list(userId)`, `create(userId, {name, realm})`, `archive(categoryId)`, `delete(categoryId)`, `seedDefaults(userId)`
+- [x] Populate the full default categories list (13 business, 10 personal) in the seed function
+- [x] All mutations validate that the calling user owns the record being modified
 
 **Acceptance criteria:** Schema deploys to Convex without errors. Unit-level manual testing via Convex dashboard confirms: settings can be created/updated, default categories seed correctly, archive/delete work with the default-category guard.
 
