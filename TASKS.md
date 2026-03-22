@@ -102,16 +102,16 @@ Build the shared `(app)` layout chrome.
 
 ---
 
-## Task 7: Dashboard (`/`)
+## Task 7: Dashboard (`/`) ✅
 
 Build the main dashboard screen.
 
-- [ ] Shareholder Loan Card (hero): displays running balance, "Corp owes you" / "You owe corp" label, CAD formatting, colour-coded (positive/negative)
-- [ ] Loan alert banner: shown when `loanAlertThreshold` is set and balance exceeds it
-- [ ] Quick Stats Row: current calendar month personal + business expense totals
-- [ ] Recent Transactions: last 5, sorted by date desc — date, description, type badge, amount
-- [ ] Tap transaction row → `/transactions/[id]`
-- [ ] Skeleton loaders while data loads
+- [x] Shareholder Loan Card (hero): displays running balance, "Corp owes you" / "You owe corp" label, CAD formatting, colour-coded (positive/negative)
+- [x] Loan alert banner: shown when `loanAlertThreshold` is set and balance exceeds it
+- [x] Quick Stats Row: current calendar month personal + business expense totals
+- [x] Recent Transactions: last 5, sorted by date desc — date, description, type badge, amount
+- [x] Tap transaction row → `/transactions/[id]`
+- [x] Skeleton loaders while data loads
 
 **Acceptance criteria:** Dashboard displays correct loan balance, monthly stats, and recent transactions. Alert banner shows/hides correctly based on threshold. All amounts are right-aligned, monospace, CAD-formatted.
 
