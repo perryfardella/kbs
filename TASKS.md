@@ -136,17 +136,17 @@ Build the transaction creation form.
 
 ---
 
-## Task 9: Transaction List (`/transactions`)
+## Task 9: Transaction List (`/transactions`) ✅
 
 Build the filterable transaction list.
 
-- [ ] Search bar (searches description and notes)
-- [ ] Filter chips: All | Personal | Business | Transfers
-- [ ] Date range filter (start + end date pickers)
-- [ ] Transactions grouped by month with month subtotal
-- [ ] Each row: date, description, category chip, amount, type colour indicator
-- [ ] Tap row → `/transactions/[id]`
-- [ ] Skeleton loaders
+- [x] Search bar (searches description and notes)
+- [x] Filter chips: All | Personal | Business | Transfers
+- [x] Date range filter (start + end date pickers)
+- [x] Transactions grouped by month with month subtotal
+- [x] Each row: date, description, category chip, amount, type colour indicator
+- [x] Tap row → `/transactions/[id]`
+- [x] Skeleton loaders
 
 **Acceptance criteria:** List loads and displays all transactions. Filters narrow results correctly. Search matches description and notes. Month grouping and subtotals are accurate. Navigation to detail works.
 
