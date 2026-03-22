@@ -117,20 +117,20 @@ Build the main dashboard screen.
 
 ---
 
-## Task 8: Add Transaction (`/add`)
+## Task 8: Add Transaction (`/add`) ✅
 
 Build the transaction creation form.
 
-- [ ] Type selector: segmented control with 7 options and short labels + tooltips
-- [ ] Amount input: large, numeric keyboard (`inputMode="decimal"`), CAD prefix, auto-focused
-- [ ] Date picker defaulting to today
-- [ ] Description text input (required)
-- [ ] Category dropdown: filtered by transaction type (personal categories for personal types, business for business, hidden for transfers)
-- [ ] Notes textarea (optional)
-- [ ] Receipt photo input (`accept="image/*" capture="environment"`), thumbnail preview
-- [ ] Shareholder Loan Impact Preview callout for applicable types (updates dynamically)
-- [ ] Full-width sticky Save button
-- [ ] On save: upload receipt (if any), create transaction, redirect to `/`
+- [x] Type selector: segmented control with 7 options and short labels + tooltips
+- [x] Amount input: large, numeric keyboard (`inputMode="decimal"`), CAD prefix, auto-focused
+- [x] Date picker defaulting to today
+- [x] Description text input (required)
+- [x] Category dropdown: filtered by transaction type (personal categories for personal types, business for business, hidden for transfers)
+- [x] Notes textarea (optional)
+- [x] Receipt photo input (`accept="image/*" capture="environment"`), thumbnail preview
+- [x] Shareholder Loan Impact Preview callout for applicable types (updates dynamically)
+- [x] Full-width sticky Save button
+- [x] On save: upload receipt (if any), create transaction, redirect to `/`
 
 **Acceptance criteria:** All 7 transaction types can be created. Category picker filters correctly per type. Receipt uploads and stores. Shareholder loan preview shows correct impact text. Validation prevents save without required fields.
 
