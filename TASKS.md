@@ -87,16 +87,16 @@ Build the first-run experience.
 
 ---
 
-## Task 6: App Shell — Bottom Nav, FAB & Layout
+## Task 6: App Shell — Bottom Nav, FAB & Layout ✅
 
 Build the shared `(app)` layout chrome.
 
-- [ ] Create bottom navigation bar with icons and labels: Dashboard, Transactions, Loan, Reports, Settings
-- [ ] Style with `backdrop-blur` glass effect, iOS safe area padding (`pb-safe`)
-- [ ] Create floating action button (FAB) `+` → `/add`, always visible above bottom nav
-- [ ] Add `active:scale-95` tactile feedback on all interactive elements
-- [ ] All touch targets ≥ 44×44px
-- [ ] Create shared loading skeleton component for data-fetched content
+- [x] Create bottom navigation bar with icons and labels: Dashboard, Transactions, Loan, Reports, Settings
+- [x] Style with `backdrop-blur` glass effect, iOS safe area padding (`pb-safe`)
+- [x] Create floating action button (FAB) `+` → `/add`, always visible above bottom nav
+- [x] Add `active:scale-95` tactile feedback on all interactive elements
+- [x] All touch targets ≥ 44×44px
+- [x] Create shared loading skeleton component for data-fetched content
 
 **Acceptance criteria:** Bottom nav renders on all `(app)` routes with correct active state. FAB is visible and navigates to `/add`. Safe area insets respected on iOS. Skeleton loader component is reusable.
 

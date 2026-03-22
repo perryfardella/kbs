@@ -2,6 +2,8 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { fetchQuery } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
+import { BottomNav } from "@/components/BottomNav";
+import { FAB } from "@/components/FAB";
 
 export default async function AppLayout({
   children,
@@ -23,5 +25,13 @@ export default async function AppLayout({
     redirect("/onboarding");
   }
 
-  return <>{children}</>;
+  return (
+    <div className="flex min-h-screen flex-col bg-bg">
+      <main className="flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+72px)]">
+        {children}
+      </main>
+      <BottomNav />
+      <FAB />
+    </div>
+  );
 }
