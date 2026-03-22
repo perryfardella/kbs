@@ -24,16 +24,16 @@ Set up the foundational project structure.
 
 ---
 
-## Task 2: Auth & Provider Wiring
+## Task 2: Auth & Provider Wiring ✅
 
 Wire up Clerk + Convex so that authenticated sessions work end-to-end.
 
-- [ ] Create `ConvexClientProvider` component wrapping `ClerkProvider` + `ConvexProviderWithClerk`
-- [ ] Wire provider into root `layout.tsx`
-- [ ] Create `(auth)` route group with layout (no nav, no auth guard)
-- [ ] Create `(app)` route group with layout (auth guard — redirect unauthenticated to `/login`)
-- [ ] Build `/login` page using Clerk's `<SignIn>` component, styled to match the dark theme
-- [ ] Verify login flow: unauthenticated → `/login` → sign in → redirect to `/`
+- [x] Create `ConvexClientProvider` component wrapping `ClerkProvider` + `ConvexProviderWithClerk`
+- [x] Wire provider into root `layout.tsx`
+- [x] Create `(auth)` route group with layout (no nav, no auth guard)
+- [x] Create `(app)` route group with layout (auth guard — redirect unauthenticated to `/login`)
+- [x] Build `/login` page using Clerk's `<SignIn>` component, styled to match the dark theme
+- [x] Verify login flow: unauthenticated → `/login` → sign in → redirect to `/`
 
 **Acceptance criteria:** Visiting any `(app)` route while logged out redirects to `/login`. Signing in redirects to `/`. Convex queries can access `ctx.auth` and retrieve the user identity.
 

@@ -7,3 +7,9 @@ When working on Convex code, **always read `convex/_generated/ai/guidelines.md` 
 
 Convex agent skills for common tasks can be installed by running `npx convex ai-files install`.
 <!-- convex-ai-end -->
+
+<!-- package-manager-preference-start -->
+## Package Manager
+- Always use `pnpm dlx` instead of `npx`
+- Use `pnpm` for all package operations
+<!-- package-manager-preference-end -->
