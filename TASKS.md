@@ -182,16 +182,16 @@ Build the loan ledger screen.
 
 ---
 
-## Task 12: Reports & CSV Export (`/reports`)
+## Task 12: Reports & CSV Export (`/reports`) ✅
 
 Build the reports screen with export.
 
-- [ ] Date range picker defaulting to current fiscal year (computed from `settings.fiscalYearEnd`)
-- [ ] Summary cards: Total Personal Expenses, Total Business Expenses, Total Corp→Personal Transfers, Total Personal→Business Transfers, Net Shareholder Loan Change, Transaction count
-- [ ] CSV export: client-side Blob generation
+- [x] Date range picker defaulting to current fiscal year (computed from `settings.fiscalYearEnd`)
+- [x] Summary cards: Total Personal Expenses, Total Business Expenses, Total Corp→Personal Transfers, Total Personal→Business Transfers, Net Shareholder Loan Change, Transaction count
+- [x] CSV export: client-side Blob generation
   - Filename: `KBS_[startDate]_[endDate].csv`
   - Columns: Date, Description, Type, Category, Amount (CAD), Notes, Shareholder Loan Impact
-- [ ] Skeleton loaders
+- [x] Skeleton loaders
 
 **Acceptance criteria:** Summary cards show correct aggregates for the selected date range. Default range matches fiscal year. CSV downloads with correct filename, columns, and data. All amounts formatted properly.
 

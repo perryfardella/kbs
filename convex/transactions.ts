@@ -267,3 +267,34 @@ export const getSummary = query({
     };
   },
 });
+
+export const getForExport = query({
+  args: {
+    startDate: v.string(),
+    endDate: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+    const txns = await ctx.db
+      .query("transactions")
+      .withIndex("by_user_date", (q) =>
+        q
+          .eq("userId", identity.tokenIdentifier)
+          .gte("date", args.startDate)
+          .lte("date", args.endDate)
+      )
+      .order("asc")
+      .take(2000);
+    const result = [];
+    for (const tx of txns) {
+      let categoryName: string | null = null;
+      if (tx.categoryId) {
+        const category = await ctx.db.get(tx.categoryId);
+        categoryName = category?.name ?? null;
+      }
+      result.push({ ...tx, categoryName });
+    }
+    return result;
+  },
+});
