@@ -166,17 +166,17 @@ Build the view/edit screen for a single transaction.
 
 ---
 
-## Task 11: Shareholder Loan Ledger (`/loan`)
+## Task 11: Shareholder Loan Ledger (`/loan`) ✅
 
 Build the loan ledger screen.
 
-- [ ] Balance hero card (reuse dashboard component)
-- [ ] Plain-language explainer text about positive/negative meaning
-- [ ] Table of all transactions with `shareholderLoanDelta !== 0`:
+- [x] Balance hero card (reuse dashboard component)
+- [x] Plain-language explainer text about positive/negative meaning
+- [x] Table of all transactions with `shareholderLoanDelta !== 0`:
   - Columns: Date, Description, Amount, Impact (+/-), Running Balance
   - Sorted oldest → newest
   - Running balance computed cumulatively
-- [ ] Skeleton loaders
+- [x] Skeleton loaders
 
 **Acceptance criteria:** Ledger shows only loan-affecting transactions. Running balance column accumulates correctly from oldest to newest. Balance hero matches dashboard.
 

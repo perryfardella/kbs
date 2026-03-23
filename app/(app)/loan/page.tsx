@@ -1,0 +1,145 @@
+"use client";
+
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Skeleton } from "@/components/Skeleton";
+
+function formatCAD(amount: number): string {
+  return new Intl.NumberFormat("en-CA", {
+    style: "currency",
+    currency: "CAD",
+    minimumFractionDigits: 2,
+  }).format(Math.abs(amount));
+}
+
+function formatShortDate(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-CA", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+export default function LoanLedgerPage() {
+  const balance = useQuery(api.transactions.getShareholderLoanBalance);
+  const ledger = useQuery(api.transactions.getShareholderLoanLedger);
+
+  const isPositive = (balance ?? 0) >= 0;
+
+  return (
+    <div className="mx-auto max-w-lg px-4 py-6 space-y-5">
+      {/* Balance Hero */}
+      <div className="rounded-2xl border border-[#1f1f1f] bg-[#141414] p-5 space-y-1">
+        <p className="text-sm text-text-muted font-medium">
+          {balance === undefined
+            ? "Loading…"
+            : isPositive
+            ? "Corp owes you"
+            : "You owe corp"}
+        </p>
+        {balance === undefined ? (
+          <Skeleton className="h-10 w-48" />
+        ) : (
+          <p
+            className={`font-mono text-4xl font-semibold tracking-tight ${
+              isPositive ? "text-[#4ade80]" : "text-[#f87171]"
+            }`}
+          >
+            {isPositive ? "+" : "-"}
+            {formatCAD(balance)}
+          </p>
+        )}
+      </div>
+
+      {/* Explainer */}
+      <div className="rounded-2xl border border-[#1f1f1f] bg-[#141414] px-4 py-4 space-y-2 text-sm text-text-muted leading-relaxed">
+        <p>
+          <span className="text-[#4ade80] font-semibold">Positive balance</span> — the
+          corporation owes you money. This happens when you pay business expenses from
+          your personal funds, or transfer personal money into the business. You can
+          recover this by declaring a dividend or having the corp repay the loan.
+        </p>
+        <p>
+          <span className="text-[#f87171] font-semibold">Negative balance</span> — you
+          owe the corporation money. This happens when the corp pays your personal
+          expenses, or transfers money to your personal account beyond what it owes you.
+        </p>
+      </div>
+
+      {/* Ledger Table */}
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide px-1">
+          Loan Activity
+        </h2>
+
+        {ledger === undefined ? (
+          <div className="rounded-2xl border border-[#1f1f1f] bg-[#141414] divide-y divide-[#1f1f1f]">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 flex-1" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+            ))}
+          </div>
+        ) : ledger.length === 0 ? (
+          <div className="rounded-2xl border border-[#1f1f1f] bg-[#141414] px-4 py-8 text-center text-sm text-text-muted">
+            No loan-affecting transactions yet.
+          </div>
+        ) : (
+          <>
+            {/* Header row */}
+            <div className="grid grid-cols-[1fr_2fr_1fr_1fr_1fr] gap-2 px-4 py-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+              <span>Date</span>
+              <span>Description</span>
+              <span className="text-right">Amount</span>
+              <span className="text-right">Impact</span>
+              <span className="text-right">Balance</span>
+            </div>
+            <div className="rounded-2xl border border-[#1f1f1f] bg-[#141414] divide-y divide-[#1f1f1f] overflow-hidden">
+              {ledger.map((tx) => {
+                const deltaPositive = tx.shareholderLoanDelta > 0;
+                const balancePositive = tx.runningBalance >= 0;
+                return (
+                  <div
+                    key={tx._id}
+                    className="grid grid-cols-[1fr_2fr_1fr_1fr_1fr] gap-2 px-4 py-3 min-h-[44px] items-center"
+                  >
+                    <span className="text-xs text-text-muted font-mono truncate">
+                      {formatShortDate(tx.date)}
+                    </span>
+                    <span className="text-sm text-text-primary truncate">
+                      {tx.description}
+                    </span>
+                    <span className="font-mono text-xs text-text-primary text-right">
+                      {formatCAD(tx.amount)}
+                    </span>
+                    <span
+                      className={`font-mono text-xs text-right font-semibold ${
+                        deltaPositive ? "text-[#4ade80]" : "text-[#f87171]"
+                      }`}
+                    >
+                      {deltaPositive ? "+" : "-"}
+                      {formatCAD(tx.shareholderLoanDelta)}
+                    </span>
+                    <span
+                      className={`font-mono text-xs text-right font-semibold ${
+                        balancePositive ? "text-[#4ade80]" : "text-[#f87171]"
+                      }`}
+                    >
+                      {balancePositive ? "+" : "-"}
+                      {formatCAD(tx.runningBalance)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
