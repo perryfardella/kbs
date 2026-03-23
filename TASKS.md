@@ -213,13 +213,13 @@ Build the settings screens.
 
 Final pass for production readiness.
 
-- [ ] Verify all monetary amounts: right-aligned, monospace, CAD-formatted, coloured by sign
-- [ ] Verify all destructive actions have confirmation dialogs
-- [ ] Verify all loading states use skeleton loaders
-- [ ] Test PWA: add to home screen on iPhone Safari, standalone mode, theme colour, icons
-- [ ] Test viewport: `viewport-fit=cover`, safe area insets on notched devices
-- [ ] Test empty states: no transactions, no categories, fresh dashboard
-- [ ] Test form validation: required fields, numeric inputs, date ranges
-- [ ] Fix any visual or functional issues found
+- [x] Verify all monetary amounts: right-aligned, monospace, CAD-formatted, coloured by sign
+- [x] Verify all destructive actions have confirmation dialogs
+- [x] Verify all loading states use skeleton loaders
+- [x] Test PWA: add to home screen on iPhone Safari, standalone mode, theme colour, icons
+- [x] Test viewport: `viewport-fit=cover`, safe area insets on notched devices
+- [x] Test empty states: no transactions, no categories, fresh dashboard
+- [x] Test form validation: required fields, numeric inputs, date ranges
+- [x] Fix any visual or functional issues found
 
 **Acceptance criteria:** App is fully functional as an iPhone Safari PWA. No blank loading flashes. All edge cases handled gracefully. Design matches the spec's palette and typography.

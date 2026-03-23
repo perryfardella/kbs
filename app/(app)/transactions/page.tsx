@@ -298,7 +298,7 @@ export default function TransactionsPage() {
                     <span className="text-xs font-semibold text-text-muted uppercase tracking-wide">
                       {monthLabel(txns[0].date)}
                     </span>
-                    <span className="text-xs font-mono text-text-muted">
+                    <span className="text-xs font-mono text-text-muted text-right">
                       {formatCAD(subtotal)}
                     </span>
                   </div>

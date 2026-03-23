@@ -17,6 +17,7 @@ export default function CategoriesPage() {
   const [addingPersonal, setAddingPersonal] = useState(false);
   const [addingBusiness, setAddingBusiness] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<Id<"categories"> | null>(null);
+  const [confirmArchiveId, setConfirmArchiveId] = useState<Id<"categories"> | null>(null);
   const [deletingId, setDeletingId] = useState<Id<"categories"> | null>(null);
 
   const categories = useQuery(api.categories.list);
@@ -47,7 +48,12 @@ export default function CategoriesPage() {
   }
 
   async function handleArchive(id: Id<"categories">) {
+    setConfirmArchiveId(id);
+  }
+
+  async function confirmArchive(id: Id<"categories">) {
     await archiveCategory({ categoryId: id });
+    setConfirmArchiveId(null);
   }
 
   async function handleDelete(id: Id<"categories">) {
@@ -126,8 +132,24 @@ export default function CategoriesPage() {
                 </span>
               )}
 
-              {/* Confirm delete inline */}
-              {!cat.isDefault && confirmDeleteId === cat._id ? (
+              {/* Confirm archive inline */}
+              {confirmArchiveId === cat._id ? (
+                <div className="flex gap-1 shrink-0">
+                  <button
+                    onClick={() => setConfirmArchiveId(null)}
+                    className="rounded-lg border border-[#1f1f1f] px-2 py-1 text-xs text-text-muted active:scale-95 transition-transform"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => confirmArchive(cat._id)}
+                    className="rounded-lg border border-[#fb923c]/30 bg-[#fb923c]/20 px-2 py-1 text-xs text-[#fb923c] active:scale-95 transition-transform"
+                  >
+                    Archive
+                  </button>
+                </div>
+              ) : /* Confirm delete inline */
+              !cat.isDefault && confirmDeleteId === cat._id ? (
                 <div className="flex gap-1 shrink-0">
                   <button
                     onClick={() => setConfirmDeleteId(null)}

@@ -117,7 +117,7 @@ export default function AddTransactionPage() {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<{ amount?: string; description?: string }>({});
+  const [errors, setErrors] = useState<{ amount?: string; description?: string; category?: string }>({});
 
   const amountRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -169,12 +169,15 @@ export default function AddTransactionPage() {
   }
 
   async function handleSave() {
-    const newErrors: { amount?: string; description?: string } = {};
+    const newErrors: { amount?: string; description?: string; category?: string } = {};
     if (!amount || parseFloat(amount) <= 0) {
       newErrors.amount = "Enter a valid amount";
     }
     if (!description.trim()) {
       newErrors.description = "Description is required";
+    }
+    if (showCategory && !categoryId) {
+      newErrors.category = "Select a category";
     }
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -350,8 +353,11 @@ export default function AddTransactionPage() {
             ) : (
               <select
                 value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full rounded-2xl border border-[#1f1f1f] bg-surface px-4 py-3 text-text-primary outline-none focus:border-accent min-h-[44px] appearance-none"
+                onChange={(e) => {
+                  setCategoryId(e.target.value);
+                  if (e.target.value) setErrors((prev) => ({ ...prev, category: undefined }));
+                }}
+                className={`w-full rounded-2xl border bg-surface px-4 py-3 text-text-primary outline-none focus:border-accent min-h-[44px] appearance-none ${errors.category ? "border-negative" : "border-[#1f1f1f]"}`}
               >
                 <option value="">Select a category…</option>
                 {filteredCategories.map((cat) => (
@@ -360,6 +366,9 @@ export default function AddTransactionPage() {
                   </option>
                 ))}
               </select>
+            )}
+            {errors.category && (
+              <p className="text-xs text-negative">{errors.category}</p>
             )}
           </div>
         )}
