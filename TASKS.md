@@ -197,13 +197,13 @@ Build the reports screen with export.
 
 ---
 
-## Task 13: Settings & Category Management
+## Task 13: Settings & Category Management ✅
 
 Build the settings screens.
 
-- [ ] `/settings`: editable Owner Name, Company Name, Fiscal Year End, read-only Currency, optional Loan Alert Threshold, link to categories, Sign Out button
-- [ ] `/settings/categories`: two tabs (Personal | Business), list non-archived categories, default badge, inline add form, archive action (swipe or menu), delete for user-created only
-- [ ] Sign Out: destructive button with Clerk sign-out, redirect to `/login`
+- [x] `/settings`: editable Owner Name, Company Name, Fiscal Year End, read-only Currency, optional Loan Alert Threshold, link to categories, Sign Out button
+- [x] `/settings/categories`: two tabs (Personal | Business), list non-archived categories, default badge, inline add form, archive action (swipe or menu), delete for user-created only
+- [x] Sign Out: destructive button with Clerk sign-out, redirect to `/login`
 
 **Acceptance criteria:** Settings save and persist. Categories can be added, archived, and deleted (with default guard). Archived categories no longer appear in transaction form pickers. Sign out works.
 
