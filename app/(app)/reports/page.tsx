@@ -3,7 +3,11 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Skeleton } from "@/components/Skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 function formatCAD(amount: number): string {
   return new Intl.NumberFormat("en-CA", {
@@ -34,7 +38,6 @@ function computeFiscalYear(fiscalYearEnd: string): {
   const thisYearEnd = new Date(todayYear, endMonth - 1, endDay);
 
   if (today <= thisYearEnd) {
-    // FY ends this calendar year, started previous year
     const endDate = `${todayYear}-${String(endMonth).padStart(2, "0")}-${String(endDay).padStart(2, "0")}`;
     const prevEnd = new Date(todayYear - 1, endMonth - 1, endDay);
     const startObj = new Date(prevEnd);
@@ -42,7 +45,6 @@ function computeFiscalYear(fiscalYearEnd: string): {
     const startDate = startObj.toISOString().slice(0, 10);
     return { startDate, endDate };
   } else {
-    // FY started after this year's end, ends next year
     const startObj = new Date(thisYearEnd);
     startObj.setDate(startObj.getDate() + 1);
     const startDate = startObj.toISOString().slice(0, 10);
@@ -100,13 +102,8 @@ export default function ReportsPage() {
   function handleExportCsv() {
     if (!exportTxns) return;
     const header = [
-      "Date",
-      "Description",
-      "Type",
-      "Category",
-      "Amount (CAD)",
-      "Notes",
-      "Shareholder Loan Impact",
+      "Date", "Description", "Type", "Category",
+      "Amount (CAD)", "Notes", "Shareholder Loan Impact",
     ].join(",");
 
     const rows = exportTxns.map((tx) =>
@@ -140,45 +137,47 @@ export default function ReportsPage() {
       </h1>
 
       {/* Date Range Picker */}
-      <div className="rounded-2xl border border-[#1f1f1f] bg-[#141414] p-4 space-y-3">
+      <Card className="p-4 space-y-3">
         <p className="text-sm font-semibold text-text-muted uppercase tracking-wide">
           Date Range
         </p>
         <div className="flex gap-3 items-center">
           <div className="flex-1 space-y-1">
-            <label className="text-xs text-text-muted">From</label>
-            <input
+            <Label variant="muted">From</Label>
+            <Input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full bg-[#0a0a0a] border border-[#1f1f1f] rounded-xl px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+              className="rounded-xl py-2 text-sm min-h-0 h-9"
               inputMode="none"
             />
           </div>
           <div className="flex-1 space-y-1">
-            <label className="text-xs text-text-muted">To</label>
-            <input
+            <Label variant="muted">To</Label>
+            <Input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full bg-[#0a0a0a] border border-[#1f1f1f] rounded-xl px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+              className="rounded-xl py-2 text-sm min-h-0 h-9"
               inputMode="none"
             />
           </div>
         </div>
         {settings?.fiscalYearEnd && (
-          <button
+          <Button
+            variant="link"
+            size="sm"
+            className="text-xs h-auto p-0"
             onClick={() => {
               const fy = computeFiscalYear(settings.fiscalYearEnd);
               setStartDate(fy.startDate);
               setEndDate(fy.endDate);
             }}
-            className="text-xs text-accent underline active:scale-95 transition-transform"
           >
             Reset to current fiscal year
-          </button>
+          </Button>
         )}
-      </div>
+      </Card>
 
       {/* Summary Cards */}
       <div className="space-y-2">
@@ -186,37 +185,12 @@ export default function ReportsPage() {
           Summary
         </p>
         <div className="grid grid-cols-2 gap-3">
-          <SummaryCard
-            label="Personal Expenses"
-            value={summary?.totalPersonalExpenses}
-            isLoading={isLoading}
-            colour="text-[#60a5fa]"
-          />
-          <SummaryCard
-            label="Business Expenses"
-            value={summary?.totalBusinessExpenses}
-            isLoading={isLoading}
-            colour="text-[#a78bfa]"
-          />
-          <SummaryCard
-            label="Corp → Personal"
-            value={summary?.totalTransferToPersonal}
-            isLoading={isLoading}
-            colour="text-[#fb923c]"
-          />
-          <SummaryCard
-            label="Personal → Business"
-            value={summary?.totalTransferToBusiness}
-            isLoading={isLoading}
-            colour="text-[#fb923c]"
-          />
-          <SummaryCard
-            label="Net Loan Change"
-            value={summary?.netShareholderLoanChange}
-            isLoading={isLoading}
-            signed
-          />
-          <div className="rounded-2xl border border-[#1f1f1f] bg-[#141414] p-4 space-y-1">
+          <SummaryCard label="Personal Expenses" value={summary?.totalPersonalExpenses} isLoading={isLoading} colour="text-badge-personal" />
+          <SummaryCard label="Business Expenses" value={summary?.totalBusinessExpenses} isLoading={isLoading} colour="text-badge-business" />
+          <SummaryCard label="Corp → Personal" value={summary?.totalTransferToPersonal} isLoading={isLoading} colour="text-badge-transfer" />
+          <SummaryCard label="Personal → Business" value={summary?.totalTransferToBusiness} isLoading={isLoading} colour="text-badge-transfer" />
+          <SummaryCard label="Net Loan Change" value={summary?.netShareholderLoanChange} isLoading={isLoading} signed />
+          <Card className="p-4 space-y-1">
             <p className="text-xs text-text-muted">Transactions</p>
             {isLoading ? (
               <Skeleton className="h-6 w-12" />
@@ -225,28 +199,25 @@ export default function ReportsPage() {
                 {summary?.transactionCount ?? 0}
               </p>
             )}
-          </div>
+          </Card>
         </div>
       </div>
 
       {/* Export */}
-      <button
+      <Button
+        variant="outline"
         onClick={handleExportCsv}
         disabled={!exportTxns || !effectiveStart || !effectiveEnd}
-        className="w-full rounded-2xl border border-accent bg-accent/10 text-accent font-semibold py-4 text-base active:scale-95 transition-transform disabled:opacity-40 disabled:cursor-not-allowed"
+        className="border-accent bg-accent/10 text-accent"
       >
         Export CSV
-      </button>
+      </Button>
     </div>
   );
 }
 
 function SummaryCard({
-  label,
-  value,
-  isLoading,
-  colour,
-  signed,
+  label, value, isLoading, colour, signed,
 }: {
   label: string;
   value?: number;
@@ -256,13 +227,11 @@ function SummaryCard({
 }) {
   const isNeg = (value ?? 0) < 0;
   const colourClass = signed
-    ? isNeg
-      ? "text-[#f87171]"
-      : "text-[#4ade80]"
+    ? isNeg ? "text-negative" : "text-positive"
     : colour ?? "text-text-primary";
 
   return (
-    <div className="rounded-2xl border border-[#1f1f1f] bg-[#141414] p-4 space-y-1">
+    <Card className="p-4 space-y-1">
       <p className="text-xs text-text-muted">{label}</p>
       {isLoading ? (
         <Skeleton className="h-6 w-24" />
@@ -272,6 +241,6 @@ function SummaryCard({
           {formatCAD(value ?? 0)}
         </p>
       )}
-    </div>
+    </Card>
   );
 }

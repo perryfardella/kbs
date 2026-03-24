@@ -2,7 +2,11 @@
 
 import { useQuery, usePaginatedQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Skeleton } from "@/components/Skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ListContainer, ListItem } from "@/components/ui/list-container";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 
@@ -38,14 +42,16 @@ type TransactionType =
   | "transfer_to_business"
   | "dividend_payment";
 
-const typeConfig: Record<TransactionType, { label: string; color: string }> = {
-  personal_expense: { label: "Personal", color: "bg-[#60a5fa]/20 text-[#60a5fa]" },
-  business_expense: { label: "Business", color: "bg-[#a78bfa]/20 text-[#a78bfa]" },
-  business_expense_personal_pay: { label: "Biz (Personal Pay)", color: "bg-[#a78bfa]/20 text-[#a78bfa]" },
-  personal_expense_business_pay: { label: "Personal (Biz Pay)", color: "bg-[#60a5fa]/20 text-[#60a5fa]" },
-  transfer_to_personal: { label: "Corp → Me", color: "bg-[#fb923c]/20 text-[#fb923c]" },
-  transfer_to_business: { label: "Me → Corp", color: "bg-[#fb923c]/20 text-[#fb923c]" },
-  dividend_payment: { label: "Dividend", color: "bg-[#fb923c]/20 text-[#fb923c]" },
+type BadgeVariant = "personal" | "business" | "transfer";
+
+const typeConfig: Record<TransactionType, { label: string; variant: BadgeVariant }> = {
+  personal_expense:             { label: "Personal",          variant: "personal" },
+  business_expense:             { label: "Business",          variant: "business" },
+  business_expense_personal_pay:{ label: "Biz (Personal Pay)",variant: "business" },
+  personal_expense_business_pay:{ label: "Personal (Biz Pay)",variant: "personal" },
+  transfer_to_personal:         { label: "Corp → Me",         variant: "transfer" },
+  transfer_to_business:         { label: "Me → Corp",         variant: "transfer" },
+  dividend_payment:             { label: "Dividend",          variant: "transfer" },
 };
 
 export default function DashboardPage() {
@@ -70,7 +76,7 @@ export default function DashboardPage() {
   return (
     <div className="mx-auto max-w-lg px-4 py-6 space-y-5">
       {/* Shareholder Loan Card */}
-      <div className="rounded-2xl border border-[#1f1f1f] bg-[#141414] p-5 space-y-1">
+      <Card className="p-5 space-y-1">
         <p className="text-sm text-text-muted font-medium">
           {balance === undefined
             ? "Loading…"
@@ -81,34 +87,30 @@ export default function DashboardPage() {
         {balance === undefined ? (
           <Skeleton className="h-10 w-48" />
         ) : (
-          <p
-            className={`font-mono text-4xl font-semibold tracking-tight ${
-              isPositive ? "text-[#4ade80]" : "text-[#f87171]"
-            }`}
-          >
+          <p className={`font-mono text-4xl font-semibold tracking-tight ${isPositive ? "text-positive" : "text-negative"}`}>
             {isPositive ? "+" : "-"}
             {formatCAD(balance)}
           </p>
         )}
-      </div>
+      </Card>
 
       {/* Loan Alert Banner */}
       {showAlert && (
-        <div className="flex items-start gap-3 rounded-2xl border border-[#f87171]/30 bg-[#f87171]/10 px-4 py-3 text-[#f87171]">
-          <AlertTriangle size={18} className="mt-0.5 shrink-0" />
-          <p className="text-sm leading-snug">
+        <Alert variant="negative">
+          <AlertTriangle size={18} />
+          <AlertDescription>
             Your balance has exceeded{" "}
             <span className="font-mono font-semibold">
               {formatCAD(settings!.loanAlertThreshold!)}
             </span>{" "}
             — consider declaring a dividend.
-          </p>
-        </div>
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Quick Stats Row */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-[#1f1f1f] bg-[#141414] p-4 space-y-1">
+        <Card className="p-4 space-y-1">
           <p className="text-xs text-text-muted font-medium">Personal · This Month</p>
           {summary === undefined ? (
             <Skeleton className="h-6 w-28" />
@@ -117,8 +119,8 @@ export default function DashboardPage() {
               {formatCAD(summary?.totalPersonalExpenses ?? 0)}
             </p>
           )}
-        </div>
-        <div className="rounded-2xl border border-[#1f1f1f] bg-[#141414] p-4 space-y-1">
+        </Card>
+        <Card className="p-4 space-y-1">
           <p className="text-xs text-text-muted font-medium">Business · This Month</p>
           {summary === undefined ? (
             <Skeleton className="h-6 w-28" />
@@ -127,7 +129,7 @@ export default function DashboardPage() {
               {formatCAD(summary?.totalBusinessExpenses ?? 0)}
             </p>
           )}
-        </div>
+        </Card>
       </div>
 
       {/* Recent Transactions */}
@@ -135,52 +137,42 @@ export default function DashboardPage() {
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide px-1">
           Recent Transactions
         </h2>
-        <div className="rounded-2xl border border-[#1f1f1f] bg-[#141414] overflow-hidden">
+        <ListContainer>
           {status === "LoadingFirstPage" ? (
-            <div className="divide-y divide-[#1f1f1f]">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3 px-4 py-3">
-                  <Skeleton className="h-4 w-14" />
-                  <Skeleton className="h-4 flex-1" />
-                  <Skeleton className="h-5 w-20" />
-                  <Skeleton className="h-4 w-16" />
-                </div>
-              ))}
-            </div>
+            Array.from({ length: 5 }).map((_, i) => (
+              <ListItem key={i}>
+                <Skeleton className="h-4 w-14" />
+                <Skeleton className="h-4 flex-1" />
+                <Skeleton className="h-5 w-20" />
+                <Skeleton className="h-4 w-16" />
+              </ListItem>
+            ))
           ) : recentTxns.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-text-muted">
               No transactions yet. Tap + to add one.
             </p>
           ) : (
-            <div className="divide-y divide-[#1f1f1f]">
-              {recentTxns.slice(0, 5).map((tx) => {
-                const config = typeConfig[tx.type as TransactionType];
-                return (
-                  <Link
-                    key={tx._id}
-                    href={`/transactions/${tx._id}`}
-                    className="flex items-center gap-3 px-4 py-3 active:bg-[#1f1f1f] transition-colors min-h-[44px]"
-                  >
+            recentTxns.slice(0, 5).map((tx) => {
+              const config = typeConfig[tx.type as TransactionType];
+              return (
+                <ListItem key={tx._id} asChild>
+                  <Link href={`/transactions/${tx._id}`}>
                     <span className="shrink-0 text-xs text-text-muted font-mono w-14">
                       {formatShortDate(tx.date)}
                     </span>
                     <span className="flex-1 truncate text-sm text-text-primary">
                       {tx.description}
                     </span>
-                    <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${config.color}`}
-                    >
-                      {config.label}
-                    </span>
+                    <Badge variant={config.variant}>{config.label}</Badge>
                     <span className="shrink-0 font-mono text-sm text-text-primary text-right">
                       {formatCAD(tx.amount)}
                     </span>
                   </Link>
-                );
-              })}
-            </div>
+                </ListItem>
+              );
+            })
           )}
-        </div>
+        </ListContainer>
       </div>
     </div>
   );

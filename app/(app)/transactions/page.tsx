@@ -3,7 +3,12 @@
 import { useState, useMemo } from "react";
 import { usePaginatedQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Skeleton } from "@/components/Skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Toggle } from "@/components/ui/toggle";
+import { ListContainer, ListItem } from "@/components/ui/list-container";
 import Link from "next/link";
 import { Search, X } from "lucide-react";
 
@@ -17,58 +22,21 @@ type TransactionType =
   | "dividend_payment";
 
 type FilterChip = "all" | "personal" | "business" | "transfers";
+type BadgeVariant = "personal" | "business" | "transfer";
 
-const typeConfig: Record<TransactionType, { label: string; color: string; indicator: string }> = {
-  personal_expense: {
-    label: "Personal",
-    color: "bg-[#60a5fa]/20 text-[#60a5fa]",
-    indicator: "bg-[#60a5fa]",
-  },
-  business_expense: {
-    label: "Business",
-    color: "bg-[#a78bfa]/20 text-[#a78bfa]",
-    indicator: "bg-[#a78bfa]",
-  },
-  business_expense_personal_pay: {
-    label: "Biz (Personal Pay)",
-    color: "bg-[#a78bfa]/20 text-[#a78bfa]",
-    indicator: "bg-[#a78bfa]",
-  },
-  personal_expense_business_pay: {
-    label: "Personal (Biz Pay)",
-    color: "bg-[#60a5fa]/20 text-[#60a5fa]",
-    indicator: "bg-[#60a5fa]",
-  },
-  transfer_to_personal: {
-    label: "Corp → Me",
-    color: "bg-[#fb923c]/20 text-[#fb923c]",
-    indicator: "bg-[#fb923c]",
-  },
-  transfer_to_business: {
-    label: "Me → Corp",
-    color: "bg-[#fb923c]/20 text-[#fb923c]",
-    indicator: "bg-[#fb923c]",
-  },
-  dividend_payment: {
-    label: "Dividend",
-    color: "bg-[#fb923c]/20 text-[#fb923c]",
-    indicator: "bg-[#fb923c]",
-  },
+const typeConfig: Record<TransactionType, { label: string; variant: BadgeVariant; indicator: string }> = {
+  personal_expense:             { label: "Personal",          variant: "personal", indicator: "bg-badge-personal" },
+  business_expense:             { label: "Business",          variant: "business", indicator: "bg-badge-business" },
+  business_expense_personal_pay:{ label: "Biz (Personal Pay)",variant: "business", indicator: "bg-badge-business" },
+  personal_expense_business_pay:{ label: "Personal (Biz Pay)",variant: "personal", indicator: "bg-badge-personal" },
+  transfer_to_personal:         { label: "Corp → Me",         variant: "transfer", indicator: "bg-badge-transfer" },
+  transfer_to_business:         { label: "Me → Corp",         variant: "transfer", indicator: "bg-badge-transfer" },
+  dividend_payment:             { label: "Dividend",          variant: "transfer", indicator: "bg-badge-transfer" },
 };
 
-const PERSONAL_TYPES: TransactionType[] = [
-  "personal_expense",
-  "personal_expense_business_pay",
-];
-const BUSINESS_TYPES: TransactionType[] = [
-  "business_expense",
-  "business_expense_personal_pay",
-];
-const TRANSFER_TYPES: TransactionType[] = [
-  "transfer_to_personal",
-  "transfer_to_business",
-  "dividend_payment",
-];
+const PERSONAL_TYPES: TransactionType[] = ["personal_expense", "personal_expense_business_pay"];
+const BUSINESS_TYPES: TransactionType[] = ["business_expense", "business_expense_personal_pay"];
+const TRANSFER_TYPES: TransactionType[] = ["transfer_to_personal", "transfer_to_business", "dividend_payment"];
 
 function formatCAD(amount: number): string {
   return new Intl.NumberFormat("en-CA", {
@@ -80,22 +48,16 @@ function formatCAD(amount: number): string {
 
 function formatShortDate(dateStr: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-CA", {
-    month: "short",
-    day: "numeric",
-  });
+  return new Date(y, m - 1, d).toLocaleDateString("en-CA", { month: "short", day: "numeric" });
 }
 
 function monthLabel(dateStr: string): string {
   const [y, m] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString("en-CA", {
-    month: "long",
-    year: "numeric",
-  });
+  return new Date(y, m - 1, 1).toLocaleDateString("en-CA", { month: "long", year: "numeric" });
 }
 
 function monthKey(dateStr: string): string {
-  return dateStr.slice(0, 7); // "YYYY-MM"
+  return dateStr.slice(0, 7);
 }
 
 export default function TransactionsPage() {
@@ -106,11 +68,7 @@ export default function TransactionsPage() {
   const [showDateFilters, setShowDateFilters] = useState(false);
 
   const queryArgs = useMemo(() => {
-    const args: {
-      search?: string;
-      startDate?: string;
-      endDate?: string;
-    } = {};
+    const args: { search?: string; startDate?: string; endDate?: string } = {};
     if (search.trim()) args.search = search.trim();
     if (startDate) args.startDate = startDate;
     if (endDate) args.endDate = endDate;
@@ -125,20 +83,11 @@ export default function TransactionsPage() {
 
   const filtered = useMemo(() => {
     if (chip === "all") return results;
-    if (chip === "personal")
-      return results.filter((tx) =>
-        PERSONAL_TYPES.includes(tx.type as TransactionType)
-      );
-    if (chip === "business")
-      return results.filter((tx) =>
-        BUSINESS_TYPES.includes(tx.type as TransactionType)
-      );
-    return results.filter((tx) =>
-      TRANSFER_TYPES.includes(tx.type as TransactionType)
-    );
+    if (chip === "personal") return results.filter((tx) => PERSONAL_TYPES.includes(tx.type as TransactionType));
+    if (chip === "business") return results.filter((tx) => BUSINESS_TYPES.includes(tx.type as TransactionType));
+    return results.filter((tx) => TRANSFER_TYPES.includes(tx.type as TransactionType));
   }, [results, chip]);
 
-  // Group by month
   const grouped = useMemo(() => {
     const map = new Map<string, typeof filtered>();
     for (const tx of filtered) {
@@ -161,14 +110,14 @@ export default function TransactionsPage() {
   return (
     <div className="mx-auto max-w-lg">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-bg border-b border-[#1f1f1f]">
+      <div className="sticky top-0 z-10 bg-bg border-b border-border">
         <div className="px-4 pt-4 pb-3 space-y-3">
           <h1 className="font-display text-xl font-semibold text-text-primary">
             Transactions
           </h1>
 
-          {/* Search */}
-          <div className="flex items-center gap-2 rounded-2xl border border-[#1f1f1f] bg-surface px-3 min-h-[44px]">
+          {/* Search — inline, only used here so not extracted to a component */}
+          <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface px-3 min-h-[44px]">
             <Search size={16} className="text-text-muted shrink-0" />
             <input
               type="search"
@@ -192,30 +141,20 @@ export default function TransactionsPage() {
           {/* Filter chips */}
           <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-0.5">
             {chips.map((c) => (
-              <button
+              <Toggle
                 key={c.value}
-                type="button"
-                onClick={() => setChip(c.value)}
-                className={`shrink-0 rounded-xl px-3.5 py-1.5 text-sm font-medium transition-all active:scale-95 min-h-[44px] border ${
-                  chip === c.value
-                    ? "bg-accent text-bg border-accent"
-                    : "bg-surface text-text-muted border-[#1f1f1f]"
-                }`}
+                pressed={chip === c.value}
+                onPressedChange={() => setChip(c.value)}
               >
                 {c.label}
-              </button>
+              </Toggle>
             ))}
-            <button
-              type="button"
-              onClick={() => setShowDateFilters((v) => !v)}
-              className={`shrink-0 rounded-xl px-3.5 py-1.5 text-sm font-medium transition-all active:scale-95 min-h-[44px] border ${
-                showDateFilters || startDate || endDate
-                  ? "bg-accent text-bg border-accent"
-                  : "bg-surface text-text-muted border-[#1f1f1f]"
-              }`}
+            <Toggle
+              pressed={showDateFilters || !!(startDate || endDate)}
+              onPressedChange={() => setShowDateFilters((v) => !v)}
             >
               Date Range
-            </button>
+            </Toggle>
           </div>
 
           {/* Date range inputs */}
@@ -223,34 +162,31 @@ export default function TransactionsPage() {
             <div className="flex gap-3">
               <div className="flex-1 space-y-1">
                 <label className="block text-xs text-text-muted">From</label>
-                <input
+                <Input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full rounded-xl border border-[#1f1f1f] bg-surface px-3 py-2 text-text-primary font-mono text-sm outline-none focus:border-accent min-h-[44px]"
+                  className="rounded-xl py-2 text-sm min-h-0 h-10 font-mono"
                 />
               </div>
               <div className="flex-1 space-y-1">
                 <label className="block text-xs text-text-muted">To</label>
-                <input
+                <Input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full rounded-xl border border-[#1f1f1f] bg-surface px-3 py-2 text-text-primary font-mono text-sm outline-none focus:border-accent min-h-[44px]"
+                  className="rounded-xl py-2 text-sm min-h-0 h-10 font-mono"
                 />
               </div>
               {(startDate || endDate) && (
                 <div className="flex items-end pb-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStartDate("");
-                      setEndDate("");
-                    }}
-                    className="flex items-center justify-center w-10 h-10 rounded-xl active:scale-95 transition-transform"
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => { setStartDate(""); setEndDate(""); }}
                   >
-                    <X size={16} className="text-text-muted" />
-                  </button>
+                    <X size={16} />
+                  </Button>
                 </div>
               )}
             </div>
@@ -265,21 +201,21 @@ export default function TransactionsPage() {
             {Array.from({ length: 3 }).map((_, gi) => (
               <div key={gi} className="space-y-2">
                 <Skeleton className="h-4 w-32" />
-                <div className="rounded-2xl border border-[#1f1f1f] bg-[#141414] overflow-hidden divide-y divide-[#1f1f1f]">
+                <ListContainer>
                   {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="flex items-center gap-3 px-4 py-3">
+                    <ListItem key={i}>
                       <Skeleton className="h-4 w-12 shrink-0" />
                       <Skeleton className="h-4 flex-1" />
                       <Skeleton className="h-5 w-16 shrink-0" />
                       <Skeleton className="h-4 w-16 shrink-0" />
-                    </div>
+                    </ListItem>
                   ))}
-                </div>
+                </ListContainer>
               </div>
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="rounded-2xl border border-[#1f1f1f] bg-[#141414] px-4 py-10 text-center">
+          <div className="rounded-2xl border border-border bg-surface px-4 py-10 text-center">
             <p className="text-sm text-text-muted">
               {search
                 ? "No transactions match your search."
@@ -302,53 +238,36 @@ export default function TransactionsPage() {
                       {formatCAD(subtotal)}
                     </span>
                   </div>
-                  <div className="rounded-2xl border border-[#1f1f1f] bg-[#141414] overflow-hidden divide-y divide-[#1f1f1f]">
+                  <ListContainer>
                     {txns.map((tx) => {
                       const config = typeConfig[tx.type as TransactionType];
                       return (
-                        <Link
-                          key={tx._id}
-                          href={`/transactions/${tx._id}`}
-                          className="flex items-center gap-3 px-4 py-3 active:bg-[#1f1f1f] transition-colors min-h-[44px]"
-                        >
-                          {/* Type colour indicator */}
-                          <span
-                            className={`shrink-0 w-1.5 h-1.5 rounded-full ${config.indicator}`}
-                          />
-                          {/* Date */}
-                          <span className="shrink-0 text-xs text-text-muted font-mono w-12">
-                            {formatShortDate(tx.date)}
-                          </span>
-                          {/* Description */}
-                          <span className="flex-1 truncate text-sm text-text-primary">
-                            {tx.description}
-                          </span>
-                          {/* Category chip (if present, shown via type label fallback) */}
-                          <span
-                            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${config.color}`}
-                          >
-                            {config.label}
-                          </span>
-                          {/* Amount */}
-                          <span className="shrink-0 font-mono text-sm text-text-primary text-right min-w-[60px]">
-                            {formatCAD(tx.amount)}
-                          </span>
-                        </Link>
+                        <ListItem key={tx._id} asChild>
+                          <Link href={`/transactions/${tx._id}`}>
+                            <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${config.indicator}`} />
+                            <span className="shrink-0 text-xs text-text-muted font-mono w-12">
+                              {formatShortDate(tx.date)}
+                            </span>
+                            <span className="flex-1 truncate text-sm text-text-primary">
+                              {tx.description}
+                            </span>
+                            <Badge variant={config.variant}>{config.label}</Badge>
+                            <span className="shrink-0 font-mono text-sm text-text-primary text-right min-w-[60px]">
+                              {formatCAD(tx.amount)}
+                            </span>
+                          </Link>
+                        </ListItem>
                       );
                     })}
-                  </div>
+                  </ListContainer>
                 </div>
               );
             })}
 
             {status === "CanLoadMore" && (
-              <button
-                type="button"
-                onClick={() => loadMore(50)}
-                className="w-full rounded-2xl border border-[#1f1f1f] bg-surface py-3 text-sm text-text-muted active:scale-95 transition-all min-h-[44px]"
-              >
+              <Button variant="secondary" size="sm" className="w-full" onClick={() => loadMore(50)}>
                 Load more
-              </button>
+              </Button>
             )}
 
             {status === "LoadingMore" && (

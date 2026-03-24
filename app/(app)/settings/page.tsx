@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { useClerk } from "@clerk/nextjs";
 import { api } from "@/convex/_generated/api";
-import { Skeleton } from "@/components/Skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card";
+import { FormField } from "@/components/ui/form-field";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
@@ -17,6 +23,8 @@ const MONTHS = [
 function getDaysInMonth(month: number): number {
   return new Date(2000, month, 0).getDate();
 }
+
+const selectClass = "h-11 rounded-2xl border border-border bg-surface px-3 text-text-primary focus:outline-none focus:border-accent appearance-none";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -51,7 +59,6 @@ export default function SettingsPage() {
     }
   }, [settings, initialized]);
 
-  // Clamp day when month changes
   useEffect(() => {
     const maxDay = getDaysInMonth(fiscalMonth);
     if (fiscalDay > maxDay) setFiscalDay(maxDay);
@@ -110,44 +117,33 @@ export default function SettingsPage() {
         </div>
       ) : (
         <form onSubmit={handleSave} className="space-y-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-text-primary">
-              Owner Name
-            </label>
-            <input
+          <FormField label="Owner Name">
+            <Input
               type="text"
               inputMode="text"
               autoComplete="name"
               value={ownerName}
               onChange={(e) => setOwnerName(e.target.value)}
               required
-              className="h-11 rounded-2xl border border-border bg-surface px-4 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
             />
-          </div>
+          </FormField>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-text-primary">
-              Company Name
-            </label>
-            <input
+          <FormField label="Company Name">
+            <Input
               type="text"
               inputMode="text"
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
               required
-              className="h-11 rounded-2xl border border-border bg-surface px-4 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
             />
-          </div>
+          </FormField>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-text-primary">
-              Fiscal Year End
-            </label>
+          <FormField label="Fiscal Year End">
             <div className="flex gap-3">
               <select
                 value={fiscalMonth}
                 onChange={(e) => setFiscalMonth(Number(e.target.value))}
-                className="h-11 flex-1 rounded-2xl border border-border bg-surface px-3 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/40"
+                className={`flex-1 ${selectClass}`}
               >
                 {MONTHS.map((name, i) => (
                   <option key={i + 1} value={i + 1}>
@@ -158,7 +154,7 @@ export default function SettingsPage() {
               <select
                 value={fiscalDay}
                 onChange={(e) => setFiscalDay(Number(e.target.value))}
-                className="h-11 w-24 rounded-2xl border border-border bg-surface px-3 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/40"
+                className={`w-24 ${selectClass}`}
               >
                 {Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => (
                   <option key={d} value={d}>
@@ -167,27 +163,24 @@ export default function SettingsPage() {
                 ))}
               </select>
             </div>
-          </div>
+          </FormField>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-text-primary">
-              Currency
-            </label>
+          <FormField label="Currency">
             <div className="h-11 rounded-2xl border border-border bg-surface px-4 flex items-center text-text-muted select-none">
               CAD
             </div>
-          </div>
+          </FormField>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-text-primary">
+            <Label>
               Loan Alert Threshold{" "}
               <span className="text-text-muted font-normal">(optional)</span>
-            </label>
+            </Label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted text-sm pointer-events-none">
                 $
               </span>
-              <input
+              <Input
                 type="number"
                 inputMode="decimal"
                 min="0"
@@ -195,7 +188,7 @@ export default function SettingsPage() {
                 value={loanAlertThreshold}
                 onChange={(e) => setLoanAlertThreshold(e.target.value)}
                 placeholder="e.g. 10000"
-                className="h-11 w-full rounded-2xl border border-border bg-surface pl-8 pr-4 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
+                className="pl-8"
               />
             </div>
             <p className="text-xs text-text-muted">
@@ -204,59 +197,54 @@ export default function SettingsPage() {
           </div>
 
           {error && (
-            <p className="rounded-2xl border border-negative/30 bg-negative/10 px-4 py-3 text-sm text-negative">
-              {error}
-            </p>
+            <Alert variant="negative">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
 
-          <button
-            type="submit"
-            disabled={saving}
-            className="h-12 w-full rounded-2xl bg-accent font-medium text-bg transition-colors active:scale-95 disabled:opacity-50"
-          >
+          <Button type="submit" disabled={saving}>
             {saving ? "Saving…" : saved ? "Saved!" : "Save Settings"}
-          </button>
+          </Button>
         </form>
       )}
 
       {/* Categories Link */}
-      <Link
-        href="/settings/categories"
-        className="flex items-center justify-between rounded-2xl border border-[#1f1f1f] bg-[#141414] px-4 py-4 active:scale-95 transition-transform"
-      >
-        <span className="text-text-primary font-medium">Manage Categories</span>
-        <ChevronRight size={18} className="text-text-muted" />
-      </Link>
+      <Button variant="secondary" size="sm" className="w-full justify-between px-4" asChild>
+        <Link href="/settings/categories">
+          <span className="text-text-primary font-medium">Manage Categories</span>
+          <ChevronRight size={18} className="text-text-muted" />
+        </Link>
+      </Button>
 
       {/* Sign Out */}
       <div className="pt-2 pb-2">
         {!showSignOutConfirm ? (
-          <button
-            onClick={() => setShowSignOutConfirm(true)}
-            className="w-full rounded-2xl border border-negative/30 bg-negative/10 py-4 text-negative font-medium active:scale-95 transition-transform"
-          >
+          <Button variant="destructive" onClick={() => setShowSignOutConfirm(true)}>
             Sign Out
-          </button>
+          </Button>
         ) : (
-          <div className="rounded-2xl border border-negative/30 bg-negative/10 p-4 space-y-3">
+          <Card className="p-4 space-y-3 border-negative/30 bg-negative/10">
             <p className="text-sm text-text-primary text-center">
               Are you sure you want to sign out?
             </p>
             <div className="flex gap-3">
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
+                className="flex-1"
                 onClick={() => setShowSignOutConfirm(false)}
-                className="flex-1 rounded-2xl border border-[#1f1f1f] bg-[#141414] py-3 text-text-muted font-medium active:scale-95 transition-transform"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
+                size="sm"
+                className="flex-1 bg-negative text-white border-0"
                 onClick={handleSignOut}
-                className="flex-1 rounded-2xl bg-negative py-3 text-white font-medium active:scale-95 transition-transform"
               >
                 Sign Out
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
         )}
       </div>
     </div>
