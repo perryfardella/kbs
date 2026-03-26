@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "pnpm dlx convex deploy --cmd 'next build'",
+    "build": "pnpm dlx convex codegen && next build",
     "start": "next start",
     "lint": "eslint"
   },
