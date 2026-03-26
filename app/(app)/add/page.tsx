@@ -13,7 +13,20 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Toggle } from "@/components/ui/toggle";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FormField } from "@/components/ui/form-field";
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  transactionSchema,
+  type TransactionFormValues,
+} from "@/app/(app)/transactions/transactionSchema";
 
 type TransactionType =
   | "personal_expense"
@@ -65,28 +78,32 @@ const selectClass = "w-full rounded-2xl border bg-surface px-4 py-3 text-text-pr
 export default function AddTransactionPage() {
   const router = useRouter();
 
-  const [type, setType] = useState<TransactionType>("personal_expense");
-  const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(todayString);
-  const [description, setDescription] = useState("");
-  const [categoryId, setCategoryId] = useState<string>("");
-  const [notes, setNotes] = useState("");
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<{ amount?: string; description?: string; category?: string }>({});
 
-  const amountRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const categories = useQuery(api.categories.list);
   const createTransaction = useMutation(api.transactions.create);
   const generateUploadUrl = useMutation(api.receipts.generateUploadUrl);
 
-  useEffect(() => { amountRef.current?.focus(); }, []);
-  useEffect(() => { setCategoryId(""); }, [type]);
+  const form = useForm<TransactionFormValues>({
+    resolver: zodResolver(transactionSchema),
+    defaultValues: {
+      type: "personal_expense",
+      amount: "",
+      date: todayString(),
+      description: "",
+      categoryId: "",
+      notes: "",
+    },
+  });
 
-  const selectedOption = TYPE_OPTIONS.find((t) => t.value === type)!;
+  useEffect(() => { form.setFocus("amount"); }, [form]);
+
+  const transactionType = form.watch("type");
+  const selectedOption = TYPE_OPTIONS.find((t) => t.value === transactionType)!;
   const showCategory = selectedOption.categoryRealm !== null;
 
   const filteredCategories = (categories ?? []).filter((cat) => {
@@ -97,8 +114,9 @@ export default function AddTransactionPage() {
     return false;
   });
 
-  const amountNum = parseFloat(amount) || 0;
-  const loanImpact = amountNum > 0 ? getLoanImpact(type, amountNum) : null;
+  const amountStr = form.watch("amount");
+  const amountNum = parseFloat(amountStr) || 0;
+  const loanImpact = amountNum > 0 ? getLoanImpact(transactionType, amountNum) : null;
 
   function handleReceiptChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
@@ -114,13 +132,7 @@ export default function AddTransactionPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  async function handleSave() {
-    const newErrors: { amount?: string; description?: string; category?: string } = {};
-    if (!amount || parseFloat(amount) <= 0) newErrors.amount = "Enter a valid amount";
-    if (!description.trim()) newErrors.description = "Description is required";
-    if (showCategory && !categoryId) newErrors.category = "Select a category";
-    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
-
+  async function handleSave(data: TransactionFormValues) {
     setSaving(true);
     try {
       let receiptStorageId: Id<"_storage"> | undefined;
@@ -132,11 +144,12 @@ export default function AddTransactionPage() {
         receiptStorageId = storageId as Id<"_storage">;
       }
       await createTransaction({
-        date, amount: parseFloat(amount),
-        description: description.trim(),
-        notes: notes.trim() || undefined,
-        type,
-        categoryId: categoryId ? (categoryId as Id<"categories">) : undefined,
+        date: data.date,
+        amount: parseFloat(data.amount),
+        description: data.description.trim(),
+        notes: data.notes?.trim() || undefined,
+        type: data.type,
+        categoryId: data.categoryId ? (data.categoryId as Id<"categories">) : undefined,
         receiptStorageId,
       });
       router.push("/");
@@ -158,143 +171,188 @@ export default function AddTransactionPage() {
         </h1>
       </div>
 
-      <div className="px-4 pt-5 space-y-5 pb-28">
-        {/* Type Selector */}
-        <div className="space-y-2">
-          <label className="block text-xs font-medium text-text-muted uppercase tracking-wide">Type</label>
-          <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1">
-            {TYPE_OPTIONS.map((opt) => (
-              <Toggle
-                key={opt.value}
-                pressed={type === opt.value}
-                onPressedChange={() => setType(opt.value)}
-              >
-                {opt.label}
-              </Toggle>
-            ))}
-          </div>
-          {selectedOption.tooltip && (
-            <p className="flex items-start gap-1.5 text-xs text-text-muted leading-relaxed">
-              <Info size={12} className="mt-0.5 shrink-0" />
-              {selectedOption.tooltip}
-            </p>
-          )}
-        </div>
-
-        {/* Amount */}
-        <div className="space-y-1.5">
-          <label className="block text-xs font-medium text-text-muted uppercase tracking-wide">Amount</label>
-          <div className={`flex items-center gap-2 rounded-2xl border bg-surface px-4 py-3 ${errors.amount ? "border-negative" : "border-border"}`}>
-            <span className="font-mono text-sm font-medium text-text-muted">CAD</span>
-            <input
-              ref={amountRef}
-              type="text"
-              inputMode="decimal"
-              placeholder="0.00"
-              value={amount}
-              onChange={(e) => { setAmount(e.target.value); if (errors.amount) setErrors((prev) => ({ ...prev, amount: undefined })); }}
-              className="flex-1 bg-transparent font-mono text-3xl font-semibold text-text-primary outline-none placeholder:text-[#2a2a2a]"
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleSave)}>
+          <div className="px-4 pt-5 space-y-5 pb-28">
+            {/* Type Selector */}
+            <FormField
+              control={form.control}
+              name="type"
+              render={({ field }) => (
+                <div className="space-y-2">
+                  <label className="block text-xs font-medium text-text-muted uppercase tracking-wide">Type</label>
+                  <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1">
+                    {TYPE_OPTIONS.map((opt) => (
+                      <Toggle
+                        key={opt.value}
+                        pressed={field.value === opt.value}
+                        onPressedChange={() => {
+                          field.onChange(opt.value);
+                          form.setValue("categoryId", "");
+                        }}
+                      >
+                        {opt.label}
+                      </Toggle>
+                    ))}
+                  </div>
+                  {selectedOption.tooltip && (
+                    <p className="flex items-start gap-1.5 text-xs text-text-muted leading-relaxed">
+                      <Info size={12} className="mt-0.5 shrink-0" />
+                      {selectedOption.tooltip}
+                    </p>
+                  )}
+                </div>
+              )}
             />
-          </div>
-          {errors.amount && <p className="text-xs text-negative">{errors.amount}</p>}
-        </div>
 
-        {/* Loan Impact Banner */}
-        {loanImpact && (
-          <Alert variant={loanImpact.positive ? "positive" : "negative"}>
-            <Info size={16} />
-            <AlertDescription>{loanImpact.text}</AlertDescription>
-          </Alert>
-        )}
+            {/* Amount */}
+            <FormField
+              control={form.control}
+              name="amount"
+              render={({ field, fieldState }) => (
+                <FormItem>
+                  <FormLabel variant="muted">Amount</FormLabel>
+                  <div className={`flex items-center gap-2 rounded-2xl border bg-surface px-4 py-3 ${fieldState.invalid ? "border-negative" : "border-border"}`}>
+                    <span className="font-mono text-sm font-medium text-text-muted">CAD</span>
+                    <input
+                      {...field}
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="0.00"
+                      className="flex-1 bg-transparent font-mono text-3xl font-semibold text-text-primary outline-none placeholder:text-[#2a2a2a]"
+                    />
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        {/* Date */}
-        <FormField label="Date">
-          <Input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="font-mono"
-          />
-        </FormField>
-
-        {/* Description */}
-        <FormField label="Description" error={errors.description}>
-          <Input
-            type="text"
-            inputMode="text"
-            placeholder="What was this for?"
-            value={description}
-            onChange={(e) => { setDescription(e.target.value); if (errors.description) setErrors((prev) => ({ ...prev, description: undefined })); }}
-            className={errors.description ? "border-negative" : ""}
-          />
-        </FormField>
-
-        {/* Category */}
-        {showCategory && (
-          <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-text-muted uppercase tracking-wide">Category</label>
-            {categories === undefined ? (
-              <Skeleton className="h-12 w-full rounded-2xl" />
-            ) : (
-              <select
-                value={categoryId}
-                onChange={(e) => { setCategoryId(e.target.value); if (e.target.value) setErrors((prev) => ({ ...prev, category: undefined })); }}
-                className={`${selectClass} ${errors.category ? "border-negative" : "border-border"}`}
-              >
-                <option value="">Select a category…</option>
-                {filteredCategories.map((cat) => (
-                  <option key={cat._id} value={cat._id}>{cat.name}</option>
-                ))}
-              </select>
+            {/* Loan Impact Banner */}
+            {loanImpact && (
+              <Alert variant={loanImpact.positive ? "positive" : "negative"}>
+                <Info size={16} />
+                <AlertDescription>{loanImpact.text}</AlertDescription>
+              </Alert>
             )}
-            {errors.category && <p className="text-xs text-negative">{errors.category}</p>}
-          </div>
-        )}
 
-        {/* Notes */}
-        <FormField label="Notes (optional)">
-          <Textarea
-            placeholder="Any additional details…"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={3}
-          />
-        </FormField>
+            {/* Date */}
+            <FormField
+              control={form.control}
+              name="date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel variant="muted">Date</FormLabel>
+                  <FormControl>
+                    <Input type="date" className="font-mono" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        {/* Receipt Photo */}
-        <div className="space-y-2">
-          <label className="block text-xs font-medium text-text-muted uppercase tracking-wide">
-            Receipt <span className="normal-case font-normal text-text-muted">(optional)</span>
-          </label>
-          {receiptPreview ? (
-            <div className="relative rounded-2xl overflow-hidden border border-border">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={receiptPreview} alt="Receipt preview" className="w-full max-h-52 object-cover" />
-              <button
-                type="button"
-                onClick={removeReceipt}
-                className="absolute top-2 right-2 flex items-center justify-center w-8 h-8 rounded-full bg-bg/80 active:scale-95 transition-transform"
-              >
-                <X size={16} className="text-text-primary" />
-              </button>
+            {/* Description */}
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field, fieldState }) => (
+                <FormItem>
+                  <FormLabel variant="muted">Description</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="text"
+                      inputMode="text"
+                      placeholder="What was this for?"
+                      className={fieldState.invalid ? "border-negative" : ""}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Category */}
+            {showCategory && (
+              <FormField
+                control={form.control}
+                name="categoryId"
+                render={({ field, fieldState }) => (
+                  <FormItem>
+                    <FormLabel variant="muted">Category</FormLabel>
+                    {categories === undefined ? (
+                      <Skeleton className="h-12 w-full rounded-2xl" />
+                    ) : (
+                      <select
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value)}
+                        className={`${selectClass} ${fieldState.invalid ? "border-negative" : "border-border"}`}
+                      >
+                        <option value="">Select a category…</option>
+                        {filteredCategories.map((cat) => (
+                          <option key={cat._id} value={cat._id}>{cat.name}</option>
+                        ))}
+                      </select>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Notes */}
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel variant="muted">Notes (optional)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Any additional details…"
+                      rows={3}
+                      {...field}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {/* Receipt Photo */}
+            <div className="space-y-2">
+              <label className="block text-xs font-medium text-text-muted uppercase tracking-wide">
+                Receipt <span className="normal-case font-normal text-text-muted">(optional)</span>
+              </label>
+              {receiptPreview ? (
+                <div className="relative rounded-2xl overflow-hidden border border-border">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={receiptPreview} alt="Receipt preview" className="w-full max-h-52 object-cover" />
+                  <button
+                    type="button"
+                    onClick={removeReceipt}
+                    className="absolute top-2 right-2 flex items-center justify-center w-8 h-8 rounded-full bg-bg/80 active:scale-95 transition-transform"
+                  >
+                    <X size={16} className="text-text-primary" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex items-center justify-center rounded-2xl border border-dashed border-border bg-surface px-4 py-6 cursor-pointer active:bg-border/20 transition-colors min-h-[44px]">
+                  <span className="text-sm text-text-muted">Tap to add photo</span>
+                  <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleReceiptChange} className="sr-only" />
+                </label>
+              )}
             </div>
-          ) : (
-            <label className="flex items-center justify-center rounded-2xl border border-dashed border-border bg-surface px-4 py-6 cursor-pointer active:bg-border/20 transition-colors min-h-[44px]">
-              <span className="text-sm text-text-muted">Tap to add photo</span>
-              <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleReceiptChange} className="sr-only" />
-            </label>
-          )}
-        </div>
-      </div>
+          </div>
 
-      {/* Sticky Save Button */}
-      <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+72px)] left-0 right-0 z-20 px-4 pt-3 pb-3 bg-bg/95 backdrop-blur-sm border-t border-border">
-        <div className="mx-auto max-w-lg">
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : "Save Transaction"}
-          </Button>
-        </div>
-      </div>
+          {/* Sticky Save Button */}
+          <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+72px)] left-0 right-0 z-20 px-4 pt-3 pb-3 bg-bg/95 backdrop-blur-sm border-t border-border">
+            <div className="mx-auto max-w-lg">
+              <Button type="submit" disabled={saving}>
+                {saving ? "Saving…" : "Save Transaction"}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </Form>
     </div>
   );
 }

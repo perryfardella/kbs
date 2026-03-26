@@ -13,13 +13,20 @@ import { ListContainer, ListItem } from "@/components/ui/list-container";
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { ChevronLeft, Archive, Trash2 } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
 type Tab = "personal" | "business";
 
+const categorySchema = z.object({
+  name: z.string().min(1, "Category name is required"),
+});
+
+type CategoryFormValues = z.infer<typeof categorySchema>;
+
 export default function CategoriesPage() {
   const [activeTab, setActiveTab] = useState<Tab>("personal");
-  const [newPersonalName, setNewPersonalName] = useState("");
-  const [newBusinessName, setNewBusinessName] = useState("");
   const [addingPersonal, setAddingPersonal] = useState(false);
   const [addingBusiness, setAddingBusiness] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<Id<"categories"> | null>(null);
@@ -31,20 +38,23 @@ export default function CategoriesPage() {
   const archiveCategory = useMutation(api.categories.archive);
   const deleteCategory = useMutation(api.categories.deleteCategory);
 
+  const form = useForm<CategoryFormValues>({
+    resolver: zodResolver(categorySchema),
+    defaultValues: { name: "" },
+  });
+
   const personalCategories =
     categories?.filter((c) => c.realm === "personal" || c.realm === "both") ?? [];
   const businessCategories =
     categories?.filter((c) => c.realm === "business" || c.realm === "both") ?? [];
 
   async function handleAdd(tab: Tab) {
-    const name = (tab === "personal" ? newPersonalName : newBusinessName).trim();
-    if (!name) return;
+    const { name } = form.getValues();
     const setAdding = tab === "personal" ? setAddingPersonal : setAddingBusiness;
     setAdding(true);
     try {
-      await createCategory({ name, realm: tab });
-      if (tab === "personal") setNewPersonalName("");
-      else setNewBusinessName("");
+      await createCategory({ name: name.trim(), realm: tab });
+      form.reset();
     } finally {
       setAdding(false);
     }
@@ -66,11 +76,9 @@ export default function CategoriesPage() {
   }
 
   const isLoading = categories === undefined;
+  const isAdding = activeTab === "personal" ? addingPersonal : addingBusiness;
 
   function CategoryList({ cats }: { cats: typeof personalCategories }) {
-    const newName = activeTab === "personal" ? newPersonalName : newBusinessName;
-    const isAdding = activeTab === "personal" ? addingPersonal : addingBusiness;
-
     return (
       <>
         {isLoading ? (
@@ -160,24 +168,19 @@ export default function CategoriesPage() {
           <div className="flex gap-2">
             <Input
               type="text"
-              value={newName}
-              onChange={(e) =>
-                activeTab === "personal"
-                  ? setNewPersonalName(e.target.value)
-                  : setNewBusinessName(e.target.value)
-              }
               placeholder="Category name"
               className="flex-1 h-10 min-h-0 rounded-xl py-2 text-sm"
+              {...form.register("name")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  handleAdd(activeTab);
+                  form.handleSubmit(() => handleAdd(activeTab))();
                 }
               }}
             />
             <Button
-              onClick={() => handleAdd(activeTab)}
-              disabled={!newName.trim() || isAdding}
+              onClick={form.handleSubmit(() => handleAdd(activeTab))}
+              disabled={isAdding}
               size="sm"
               className="w-auto"
             >
@@ -203,7 +206,7 @@ export default function CategoriesPage() {
         </h1>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Tab)}>
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as Tab); form.reset(); }}>
         <TabsList className="w-full">
           <TabsTrigger value="personal">Personal</TabsTrigger>
           <TabsTrigger value="business">Business</TabsTrigger>

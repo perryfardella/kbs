@@ -5,13 +5,23 @@ import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { useClerk } from "@clerk/nextjs";
 import { api } from "@/convex/_generated/api";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
-import { FormField } from "@/components/ui/form-field";
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormDescription,
+  FormMessage,
+} from "@/components/ui/form";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
@@ -26,59 +36,76 @@ function getDaysInMonth(month: number): number {
 
 const selectClass = "h-11 rounded-2xl border border-border bg-surface px-3 text-text-primary focus:outline-none focus:border-accent appearance-none";
 
+const settingsSchema = z.object({
+  ownerName: z.string().min(1, "Owner name is required"),
+  companyName: z.string().min(1, "Company name is required"),
+  fiscalMonth: z.number().int().min(1).max(12),
+  fiscalDay: z.number().int().min(1).max(31),
+  loanAlertThreshold: z.string().optional(),
+});
+
+type SettingsFormValues = z.infer<typeof settingsSchema>;
+
 export default function SettingsPage() {
   const router = useRouter();
   const { signOut } = useClerk();
   const settings = useQuery(api.settings.get);
   const upsertSettings = useMutation(api.settings.upsert);
 
-  const [ownerName, setOwnerName] = useState("");
-  const [companyName, setCompanyName] = useState("");
-  const [fiscalMonth, setFiscalMonth] = useState(3);
-  const [fiscalDay, setFiscalDay] = useState(31);
-  const [loanAlertThreshold, setLoanAlertThreshold] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
+  const form = useForm<SettingsFormValues>({
+    resolver: zodResolver(settingsSchema),
+    defaultValues: {
+      ownerName: "",
+      companyName: "",
+      fiscalMonth: 3,
+      fiscalDay: 31,
+      loanAlertThreshold: "",
+    },
+  });
+
   useEffect(() => {
     if (!initialized && settings) {
-      setOwnerName(settings.ownerName);
-      setCompanyName(settings.companyName);
       const [mm, dd] = settings.fiscalYearEnd.split("-").map(Number);
-      setFiscalMonth(mm);
-      setFiscalDay(dd);
-      setLoanAlertThreshold(
-        settings.loanAlertThreshold != null
-          ? String(settings.loanAlertThreshold)
-          : ""
-      );
+      form.reset({
+        ownerName: settings.ownerName,
+        companyName: settings.companyName,
+        fiscalMonth: mm,
+        fiscalDay: dd,
+        loanAlertThreshold:
+          settings.loanAlertThreshold != null
+            ? String(settings.loanAlertThreshold)
+            : "",
+      });
       setInitialized(true);
     }
-  }, [settings, initialized]);
+  }, [settings, initialized, form]);
 
+  const fiscalMonth = form.watch("fiscalMonth");
   useEffect(() => {
     const maxDay = getDaysInMonth(fiscalMonth);
-    if (fiscalDay > maxDay) setFiscalDay(maxDay);
-  }, [fiscalMonth, fiscalDay]);
+    const currentDay = form.getValues("fiscalDay");
+    if (currentDay > maxDay) form.setValue("fiscalDay", maxDay);
+  }, [fiscalMonth, form]);
 
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    if (!ownerName.trim() || !companyName.trim()) return;
+  async function handleSave(data: SettingsFormValues) {
     setSaving(true);
     setError(null);
     try {
-      const mm = String(fiscalMonth).padStart(2, "0");
-      const dd = String(fiscalDay).padStart(2, "0");
+      const mm = String(data.fiscalMonth).padStart(2, "0");
+      const dd = String(data.fiscalDay).padStart(2, "0");
       const threshold =
-        loanAlertThreshold.trim() !== ""
-          ? Number(loanAlertThreshold)
+        data.loanAlertThreshold?.trim() !== ""
+          ? Number(data.loanAlertThreshold)
           : undefined;
       await upsertSettings({
-        ownerName: ownerName.trim(),
-        companyName: companyName.trim(),
+        ownerName: data.ownerName.trim(),
+        companyName: data.companyName.trim(),
         fiscalYearEnd: `${mm}-${dd}`,
         loanAlertThreshold: threshold,
       });
@@ -116,96 +143,131 @@ export default function SettingsPage() {
           <Skeleton className="h-12 w-full rounded-2xl" />
         </div>
       ) : (
-        <form onSubmit={handleSave} className="space-y-4">
-          <FormField label="Owner Name">
-            <Input
-              type="text"
-              inputMode="text"
-              autoComplete="name"
-              value={ownerName}
-              onChange={(e) => setOwnerName(e.target.value)}
-              required
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSave)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="ownerName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel variant="muted">Owner Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="text"
+                      inputMode="text"
+                      autoComplete="name"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </FormField>
 
-          <FormField label="Company Name">
-            <Input
-              type="text"
-              inputMode="text"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              required
+            <FormField
+              control={form.control}
+              name="companyName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel variant="muted">Company Name</FormLabel>
+                  <FormControl>
+                    <Input type="text" inputMode="text" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </FormField>
 
-          <FormField label="Fiscal Year End">
-            <div className="flex gap-3">
-              <select
-                value={fiscalMonth}
-                onChange={(e) => setFiscalMonth(Number(e.target.value))}
-                className={`flex-1 ${selectClass}`}
-              >
-                {MONTHS.map((name, i) => (
-                  <option key={i + 1} value={i + 1}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={fiscalDay}
-                onChange={(e) => setFiscalDay(Number(e.target.value))}
-                className={`w-24 ${selectClass}`}
-              >
-                {Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </FormField>
+            <FormItem>
+              <FormLabel variant="muted">Fiscal Year End</FormLabel>
+              <div className="flex gap-3">
+                <FormField
+                  control={form.control}
+                  name="fiscalMonth"
+                  render={({ field }) => (
+                    <select
+                      value={field.value}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      className={`flex-1 ${selectClass}`}
+                    >
+                      {MONTHS.map((name, i) => (
+                        <option key={i + 1} value={i + 1}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="fiscalDay"
+                  render={({ field }) => (
+                    <select
+                      value={field.value}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      className={`w-24 ${selectClass}`}
+                    >
+                      {Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                />
+              </div>
+            </FormItem>
 
-          <FormField label="Currency">
-            <div className="h-11 rounded-2xl border border-border bg-surface px-4 flex items-center text-text-muted select-none">
-              CAD
-            </div>
-          </FormField>
+            <FormItem>
+              <FormLabel variant="muted">Currency</FormLabel>
+              <div className="h-11 rounded-2xl border border-border bg-surface px-4 flex items-center text-text-muted select-none">
+                CAD
+              </div>
+            </FormItem>
 
-          <div className="flex flex-col gap-1.5">
-            <Label>
-              Loan Alert Threshold{" "}
-              <span className="text-text-muted font-normal">(optional)</span>
-            </Label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted text-sm pointer-events-none">
-                $
-              </span>
-              <Input
-                type="number"
-                inputMode="decimal"
-                min="0"
-                step="any"
-                value={loanAlertThreshold}
-                onChange={(e) => setLoanAlertThreshold(e.target.value)}
-                placeholder="e.g. 10000"
-                className="pl-8"
-              />
-            </div>
-            <p className="text-xs text-text-muted">
-              Shows a dashboard banner when the loan balance exceeds this amount
-            </p>
-          </div>
+            <FormField
+              control={form.control}
+              name="loanAlertThreshold"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Loan Alert Threshold{" "}
+                    <span className="text-text-muted font-normal">(optional)</span>
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted text-sm pointer-events-none">
+                        $
+                      </span>
+                      <Input
+                        type="number"
+                        inputMode="decimal"
+                        min="0"
+                        step="any"
+                        placeholder="e.g. 10000"
+                        className="pl-8"
+                        {...field}
+                      />
+                    </div>
+                  </FormControl>
+                  <FormDescription>
+                    Shows a dashboard banner when the loan balance exceeds this amount
+                  </FormDescription>
+                </FormItem>
+              )}
+            />
 
-          {error && (
-            <Alert variant="negative">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+            {error && (
+              <Alert variant="negative">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-          <Button type="submit" disabled={saving}>
-            {saving ? "Saving…" : saved ? "Saved!" : "Save Settings"}
-          </Button>
-        </form>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving…" : saved ? "Saved!" : "Save Settings"}
+            </Button>
+          </form>
+        </Form>
       )}
 
       {/* Categories Link */}
