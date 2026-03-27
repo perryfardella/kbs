@@ -146,7 +146,7 @@ export default function OnboardingPage() {
           />
 
           <FormItem>
-            <FormLabel>Fiscal Year End</FormLabel>
+            <FormLabel>Financial Year End</FormLabel>
             <div className="flex gap-3">
               <FormField
                 control={form.control}

@@ -174,7 +174,7 @@ export default function ReportsPage() {
               setEndDate(fy.endDate);
             }}
           >
-            Reset to current fiscal year
+            Reset to current financial year
           </Button>
         )}
       </Card>

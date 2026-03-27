@@ -179,7 +179,7 @@ export default function SettingsPage() {
             />
 
             <FormItem>
-              <FormLabel variant="muted">Fiscal Year End</FormLabel>
+              <FormLabel variant="muted">Financial Year End</FormLabel>
               <div className="flex gap-3">
                 <FormField
                   control={form.control}

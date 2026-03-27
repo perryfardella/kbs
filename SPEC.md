@@ -139,7 +139,7 @@ Indexes: `by_user`, `by_user_date`, `by_user_type`
 
 ```
 /login                          — Auth screen (password login)
-/onboarding                     — First-run setup (name, company, fiscal year end)
+/onboarding                     — First-run setup (name, company, financial year end)
 /                               — Dashboard
 /add                            — Add transaction
 /transactions                   — Transaction list + filters
@@ -166,7 +166,7 @@ Route groups:
 
 ### 6.2 Onboarding (`/onboarding`)
 - Single page, collected sequentially or as a form
-- Fields: Owner Name, Company Name, Fiscal Year End (month picker + day picker)
+- Fields: Owner Name, Company Name, Financial Year End (month picker + day picker)
 - On submit: creates `settings` record, seeds default categories, redirects to `/`
 - If `settings` already exists, redirect to `/`
 
@@ -263,7 +263,7 @@ When type is `business_expense_personal_pay`, `transfer_to_personal`, or `transf
 ### 6.8 Reports (`/reports`)
 
 **Date range picker**
-- Defaults to current fiscal year (computed from `settings.fiscalYearEnd`)
+- Defaults to current financial year (computed from `settings.fiscalYearEnd`)
 - User can adjust
 
 **Summary Cards**
@@ -289,7 +289,7 @@ Date, Description, Type, Category, Amount (CAD), Notes, Shareholder Loan Impact
 
 - Owner Name (editable)
 - Company Name (editable)
-- Fiscal Year End (month + day, editable)
+- Financial Year End (month + day, editable)
 - Currency: "CAD" (read-only display)
 - Shareholder Loan Alert Threshold (optional, numeric input) — triggers dashboard banner when balance exceeds this amount
 - Link → `/settings/categories`
@@ -446,7 +446,7 @@ Use Next.js's native PWA support — no third-party package needed. Create `app/
 
 ## 12. Open Items
 
-- [ ] Confirm corporation's fiscal year-end date (placeholder: configurable in Settings)
+- [ ] Confirm corporation's financial year-end date (placeholder: configurable in Settings)
 - [ ] Provide real PNG icons for PWA manifest (`icon-192.png`, `icon-512.png`)
 - [ ] Set `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` in `.env.local` and Vercel environment before first deploy
 - [ ] Disable additional sign-ups in Clerk dashboard after Karina's account is created
