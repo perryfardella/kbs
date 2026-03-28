@@ -143,7 +143,7 @@ expects raw base64).
 
 ---
 
-### Task 2 — Convex scan action
+### Task 2 — Convex scan action ✓ DONE
 
 **File:** `convex/receiptScanner.ts`
 
@@ -206,7 +206,7 @@ frontend degrades gracefully.
 
 ---
 
-### Task 3 — Wire up in the Add page
+### Task 3 — Wire up in the Add page ✓ DONE
 
 **File:** `app/(app)/add/page.tsx`
 

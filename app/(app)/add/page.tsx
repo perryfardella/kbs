@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
 import { Id } from "@/convex/_generated/dataModel";
-import { Info, X, ChevronLeft } from "lucide-react";
+import { Info, X, ChevronLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ import {
   transactionSchema,
   type TransactionFormValues,
 } from "@/app/(app)/transactions/transactionSchema";
+import { compressImage, fileToBase64 } from "@/lib/compressImage";
 
 type TransactionType =
   | "personal_expense"
@@ -45,13 +46,13 @@ const TYPE_OPTIONS: {
   tooltip?: string;
   categoryRealm: CategoryRealm;
 }[] = [
-  { value: "personal_expense",             label: "Personal Expense",              categoryRealm: "personal" },
-  { value: "business_expense",             label: "Business Expense",              categoryRealm: "business" },
-  { value: "business_expense_personal_pay",label: "Biz Expense (Personal Pay)",    tooltip: "I paid a business expense from my own pocket",                                                                  categoryRealm: "business" },
-  { value: "personal_expense_business_pay",label: "Personal Expense (Business Pay)",tooltip: "I paid a personal expense from my business account",                                                           categoryRealm: "personal" },
-  { value: "transfer_to_personal",         label: "Corp → Me",                     tooltip: "Informal transfer — corp sent money to my personal account (e.g. to cover a personal expense or float)",       categoryRealm: null },
-  { value: "transfer_to_business",         label: "Me → Corp",                     tooltip: "I put personal money into the business",                                                                        categoryRealm: null },
-  { value: "dividend_payment",             label: "Dividend / Repayment",          tooltip: "Formal corporate action — corp declared and paid a dividend, or formally repaid the shareholder loan",         categoryRealm: null },
+  { value: "personal_expense",             label: "Personal Expense",               categoryRealm: "personal" },
+  { value: "business_expense",             label: "Business Expense",               categoryRealm: "business" },
+  { value: "business_expense_personal_pay",label: "Biz Expense (Personal Pay)",     tooltip: "I paid a business expense from my own pocket",                                                                 categoryRealm: "business" },
+  { value: "personal_expense_business_pay",label: "Personal Expense (Business Pay)",tooltip: "I paid a personal expense from my business account",                                                          categoryRealm: "personal" },
+  { value: "transfer_to_personal",         label: "Corp → Me",                      tooltip: "Informal transfer — corp sent money to my personal account (e.g. to cover a personal expense or float)",      categoryRealm: null },
+  { value: "transfer_to_business",         label: "Me → Corp",                      tooltip: "I put personal money into the business",                                                                       categoryRealm: null },
+  { value: "dividend_payment",             label: "Dividend / Repayment",           tooltip: "Formal corporate action — corp declared and paid a dividend, or formally repaid the shareholder loan",        categoryRealm: null },
 ];
 
 function getLoanImpact(type: TransactionType, amount: number): { text: string; positive: boolean } | null {
@@ -75,11 +76,22 @@ function todayString(): string {
 
 const selectClass = "w-full rounded-2xl border bg-surface px-4 py-3 text-text-primary outline-none focus:border-accent min-h-[44px] appearance-none";
 
+function AutoFilledBadge({ field, autoFilled }: { field: string; autoFilled: Set<string> }) {
+  if (!autoFilled.has(field)) return null;
+  return (
+    <span className="ml-1.5 text-[10px] font-medium text-accent normal-case tracking-normal">
+      auto-filled
+    </span>
+  );
+}
+
 export default function AddTransactionPage() {
   const router = useRouter();
 
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [autoFilled, setAutoFilled] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -87,6 +99,7 @@ export default function AddTransactionPage() {
   const categories = useQuery(api.categories.list);
   const createTransaction = useMutation(api.transactions.create);
   const generateUploadUrl = useMutation(api.receipts.generateUploadUrl);
+  const scanReceipt = useAction(api.receiptScanner.scanReceiptPublic);
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionSchema),
@@ -118,17 +131,107 @@ export default function AddTransactionPage() {
   const amountNum = parseFloat(amountStr) || 0;
   const loanImpact = amountNum > 0 ? getLoanImpact(transactionType, amountNum) : null;
 
-  function handleReceiptChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] ?? null;
-    setReceiptFile(file);
+  function clearAutoFilled(fieldName: string) {
+    setAutoFilled((prev) => {
+      if (!prev.has(fieldName)) return prev;
+      const next = new Set(prev);
+      next.delete(fieldName);
+      return next;
+    });
+  }
+
+  async function handleReceiptChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const raw = e.target.files?.[0] ?? null;
+    if (!raw) return;
+
+    // Compress before storing — this same File is uploaded on save
+    let compressed: File;
+    try {
+      compressed = await compressImage(raw);
+    } catch {
+      // Compression failed — store original, skip scan
+      setReceiptFile(raw);
+      if (receiptPreview) URL.revokeObjectURL(receiptPreview);
+      setReceiptPreview(URL.createObjectURL(raw));
+      return;
+    }
+
+    setReceiptFile(compressed);
     if (receiptPreview) URL.revokeObjectURL(receiptPreview);
-    setReceiptPreview(file ? URL.createObjectURL(file) : null);
+    setReceiptPreview(URL.createObjectURL(compressed));
+
+    if (!categories) {
+      console.warn("[receipt scan] categories not yet loaded — skipping scan");
+      return;
+    }
+
+    setScanning(true);
+    try {
+      const imageBase64 = await fileToBase64(compressed);
+      console.log("[receipt scan] calling scanReceipt, categories:", categories.length);
+      const result = await scanReceipt({
+        imageBase64,
+        imageType: "image/jpeg",
+        // Pass live category list — new categories added by the user are automatically included
+        categories: categories.map((c) => ({ id: c._id, name: c.name, realm: c.realm })),
+      });
+      console.log("[receipt scan] result:", result);
+
+      const filled = new Set<string>();
+
+      if (result.amount) {
+        form.setValue("amount", result.amount);
+        filled.add("amount");
+      }
+      if (result.date) {
+        form.setValue("date", result.date);
+        filled.add("date");
+      }
+      if (result.description) {
+        form.setValue("description", result.description);
+        filled.add("description");
+      }
+      if (result.notes) {
+        form.setValue("notes", result.notes);
+        filled.add("notes");
+      }
+
+      // Set type before validating categoryId — category realm must match the type
+      const effectiveType = result.type ?? form.getValues("type");
+      if (result.type) {
+        form.setValue("type", result.type);
+        form.setValue("categoryId", "");
+        filled.add("type");
+      }
+
+      if (result.categoryId) {
+        const typeOption = TYPE_OPTIONS.find((t) => t.value === effectiveType);
+        const realm = typeOption?.categoryRealm;
+        const cat = categories.find((c) => c._id === result.categoryId);
+        const realmMatch =
+          realm !== null &&
+          cat !== undefined &&
+          (cat.realm === realm || cat.realm === "both");
+
+        if (realmMatch) {
+          form.setValue("categoryId", result.categoryId);
+          filled.add("categoryId");
+        }
+      }
+
+      setAutoFilled(filled);
+    } catch (err) {
+      console.error("[receipt scan] failed:", err);
+    } finally {
+      setScanning(false);
+    }
   }
 
   function removeReceipt() {
     setReceiptFile(null);
     if (receiptPreview) URL.revokeObjectURL(receiptPreview);
     setReceiptPreview(null);
+    setAutoFilled(new Set());
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -180,7 +283,10 @@ export default function AddTransactionPage() {
               name="type"
               render={({ field }) => (
                 <div className="space-y-2">
-                  <label className="block text-xs font-medium text-text-muted uppercase tracking-wide">Type</label>
+                  <label className="block text-xs font-medium text-text-muted uppercase tracking-wide">
+                    Type
+                    <AutoFilledBadge field="type" autoFilled={autoFilled} />
+                  </label>
                   <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1">
                     {TYPE_OPTIONS.map((opt) => (
                       <Toggle
@@ -189,6 +295,8 @@ export default function AddTransactionPage() {
                         onPressedChange={() => {
                           field.onChange(opt.value);
                           form.setValue("categoryId", "");
+                          clearAutoFilled("type");
+                          clearAutoFilled("categoryId");
                         }}
                       >
                         {opt.label}
@@ -211,7 +319,10 @@ export default function AddTransactionPage() {
               name="amount"
               render={({ field, fieldState }) => (
                 <FormItem>
-                  <FormLabel variant="muted">Amount</FormLabel>
+                  <FormLabel variant="muted">
+                    Amount
+                    <AutoFilledBadge field="amount" autoFilled={autoFilled} />
+                  </FormLabel>
                   <div className={`flex items-center gap-2 rounded-2xl border bg-surface px-4 py-3 ${fieldState.invalid ? "border-negative" : "border-border"}`}>
                     <span className="font-mono text-sm font-medium text-text-muted">CAD</span>
                     <input
@@ -220,6 +331,10 @@ export default function AddTransactionPage() {
                       inputMode="decimal"
                       placeholder="0.00"
                       className="flex-1 bg-transparent font-mono text-3xl font-semibold text-text-primary outline-none placeholder:text-[#2a2a2a]"
+                      onChange={(e) => {
+                        field.onChange(e);
+                        clearAutoFilled("amount");
+                      }}
                     />
                   </div>
                   <FormMessage />
@@ -241,9 +356,20 @@ export default function AddTransactionPage() {
               name="date"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel variant="muted">Date</FormLabel>
+                  <FormLabel variant="muted">
+                    Date
+                    <AutoFilledBadge field="date" autoFilled={autoFilled} />
+                  </FormLabel>
                   <FormControl>
-                    <Input type="date" className="font-mono" {...field} />
+                    <Input
+                      type="date"
+                      className="font-mono"
+                      {...field}
+                      onChange={(e) => {
+                        field.onChange(e);
+                        clearAutoFilled("date");
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -256,7 +382,10 @@ export default function AddTransactionPage() {
               name="description"
               render={({ field, fieldState }) => (
                 <FormItem>
-                  <FormLabel variant="muted">Description</FormLabel>
+                  <FormLabel variant="muted">
+                    Description
+                    <AutoFilledBadge field="description" autoFilled={autoFilled} />
+                  </FormLabel>
                   <FormControl>
                     <Input
                       type="text"
@@ -264,6 +393,10 @@ export default function AddTransactionPage() {
                       placeholder="What was this for?"
                       className={fieldState.invalid ? "border-negative" : ""}
                       {...field}
+                      onChange={(e) => {
+                        field.onChange(e);
+                        clearAutoFilled("description");
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
@@ -278,13 +411,19 @@ export default function AddTransactionPage() {
                 name="categoryId"
                 render={({ field, fieldState }) => (
                   <FormItem>
-                    <FormLabel variant="muted">Category</FormLabel>
+                    <FormLabel variant="muted">
+                      Category
+                      <AutoFilledBadge field="categoryId" autoFilled={autoFilled} />
+                    </FormLabel>
                     {categories === undefined ? (
                       <Skeleton className="h-12 w-full rounded-2xl" />
                     ) : (
                       <select
                         value={field.value ?? ""}
-                        onChange={(e) => field.onChange(e.target.value)}
+                        onChange={(e) => {
+                          field.onChange(e.target.value);
+                          clearAutoFilled("categoryId");
+                        }}
                         className={`${selectClass} ${fieldState.invalid ? "border-negative" : "border-border"}`}
                       >
                         <option value="">Select a category…</option>
@@ -305,12 +444,19 @@ export default function AddTransactionPage() {
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel variant="muted">Notes (optional)</FormLabel>
+                  <FormLabel variant="muted">
+                    Notes (optional)
+                    <AutoFilledBadge field="notes" autoFilled={autoFilled} />
+                  </FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder="Any additional details…"
                       rows={3}
                       {...field}
+                      onChange={(e) => {
+                        field.onChange(e);
+                        clearAutoFilled("notes");
+                      }}
                     />
                   </FormControl>
                 </FormItem>
@@ -325,14 +471,25 @@ export default function AddTransactionPage() {
               {receiptPreview ? (
                 <div className="relative rounded-2xl overflow-hidden border border-border">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={receiptPreview} alt="Receipt preview" className="w-full max-h-52 object-cover" />
-                  <button
-                    type="button"
-                    onClick={removeReceipt}
-                    className="absolute top-2 right-2 flex items-center justify-center w-8 h-8 rounded-full bg-bg/80 active:scale-95 transition-transform"
-                  >
-                    <X size={16} className="text-text-primary" />
-                  </button>
+                  <img
+                    src={receiptPreview}
+                    alt="Receipt preview"
+                    className={`w-full max-h-52 object-cover transition-opacity duration-200 ${scanning ? "opacity-40" : ""}`}
+                  />
+                  {scanning ? (
+                    <div className="absolute inset-0 flex items-center justify-center gap-2">
+                      <Loader2 size={16} className="animate-spin text-text-primary" />
+                      <span className="text-sm font-medium text-text-primary">Scanning…</span>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={removeReceipt}
+                      className="absolute top-2 right-2 flex items-center justify-center w-8 h-8 rounded-full bg-bg/80 active:scale-95 transition-transform"
+                    >
+                      <X size={16} className="text-text-primary" />
+                    </button>
+                  )}
                 </div>
               ) : (
                 <label className="flex items-center justify-center rounded-2xl border border-dashed border-border bg-surface px-4 py-6 cursor-pointer active:bg-border/20 transition-colors min-h-[44px]">
@@ -346,7 +503,7 @@ export default function AddTransactionPage() {
           {/* Sticky Save Button */}
           <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+72px)] left-0 right-0 z-20 px-4 pt-3 pb-3 bg-bg/95 backdrop-blur-sm border-t border-border">
             <div className="mx-auto max-w-lg">
-              <Button type="submit" disabled={saving}>
+              <Button type="submit" disabled={saving || scanning}>
                 {saving ? "Saving…" : "Save Transaction"}
               </Button>
             </div>
