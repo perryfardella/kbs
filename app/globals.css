@@ -75,10 +75,6 @@ body {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
-.nav-safe-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
 /* Date/time inputs: invert native calendar icon and spin buttons for dark theme */
 input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="datetime-local"]::-webkit-calendar-picker-indicator,
