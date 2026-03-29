@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   List,
@@ -20,17 +21,29 @@ const navItems = [
 
 export function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+
+  useEffect(() => {
+    navItems.forEach(({ href }) => router.prefetch(href));
+  }, [router]);
+
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#1f1f1f] bg-[#0a0a0aCC] backdrop-blur-xl">
       <div className="flex items-center justify-around px-2 pt-2 pb-6">
         {navItems.map(({ href, label, icon: Icon }) => {
-          const isActive =
-            href === "/" ? pathname === "/" : pathname.startsWith(href);
+          const isActive = pendingHref
+            ? pendingHref === href
+            : href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (
             <Link
               key={href}
               href={href}
+              onClick={() => setPendingHref(href)}
               className={`flex min-h-[44px] min-w-[44px] flex-col items-center justify-center gap-0.5 rounded-xl px-3 py-1 transition-colors active:scale-95 ${
                 isActive
                   ? "text-accent"
