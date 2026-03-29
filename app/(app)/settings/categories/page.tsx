@@ -206,15 +206,15 @@ export default function CategoriesPage() {
         </h1>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as Tab); form.reset(); }}>
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as Tab); form.reset(); }} className="flex flex-col gap-4">
         <TabsList className="w-full">
           <TabsTrigger value="personal">Personal</TabsTrigger>
           <TabsTrigger value="business">Business</TabsTrigger>
         </TabsList>
-        <TabsContent value="personal">
+        <TabsContent value="personal" className="flex flex-col gap-4">
           <CategoryList cats={personalCategories} />
         </TabsContent>
-        <TabsContent value="business">
+        <TabsContent value="business" className="flex flex-col gap-4">
           <CategoryList cats={businessCategories} />
         </TabsContent>
       </Tabs>
