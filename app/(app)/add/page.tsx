@@ -5,7 +5,7 @@ import { useMutation, useQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
 import { Id } from "@/convex/_generated/dataModel";
-import { Info, X, ChevronLeft, Loader2 } from "lucide-react";
+import { Info, X, ChevronLeft, Loader2, Camera, Upload } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -94,6 +94,7 @@ export default function AddTransactionPage() {
   const [autoFilled, setAutoFilled] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
 
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const categories = useQuery(api.categories.list);
@@ -232,6 +233,7 @@ export default function AddTransactionPage() {
     if (receiptPreview) URL.revokeObjectURL(receiptPreview);
     setReceiptPreview(null);
     setAutoFilled(new Set());
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -492,10 +494,26 @@ export default function AddTransactionPage() {
                   )}
                 </div>
               ) : (
-                <label className="flex items-center justify-center rounded-2xl border border-dashed border-border bg-surface px-4 py-6 cursor-pointer active:bg-border/20 transition-colors min-h-[44px]">
-                  <span className="text-sm text-text-muted">Tap to add photo</span>
-                  <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleReceiptChange} className="sr-only" />
-                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border bg-surface px-4 py-6 active:bg-border/20 transition-colors min-h-[44px]"
+                  >
+                    <Camera size={18} className="text-text-muted" />
+                    <span className="text-sm text-text-muted">Take Photo</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border bg-surface px-4 py-6 active:bg-border/20 transition-colors min-h-[44px]"
+                  >
+                    <Upload size={18} className="text-text-muted" />
+                    <span className="text-sm text-text-muted">Upload File</span>
+                  </button>
+                  <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleReceiptChange} className="sr-only" />
+                  <input ref={fileInputRef} type="file" accept="image/*" onChange={handleReceiptChange} className="sr-only" />
+                </div>
               )}
             </div>
           </div>
