@@ -7,12 +7,20 @@ import { useRouter } from "next/navigation";
 import { Id } from "@/convex/_generated/dataModel";
 import { Info, X, ChevronLeft, Loader2, Camera, Upload } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Toggle } from "@/components/ui/toggle";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Form,
   FormField,
@@ -73,8 +81,6 @@ function todayString(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
-
-const selectClass = "w-full rounded-2xl border bg-surface pl-4 pr-10 py-3 text-text-primary outline-none focus:border-accent min-h-[44px] appearance-none";
 
 function AutoFilledBadge({ field, autoFilled }: { field: string; autoFilled: Set<string> }) {
   if (!autoFilled.has(field)) return null;
@@ -257,6 +263,7 @@ export default function AddTransactionPage() {
         categoryId: data.categoryId ? (data.categoryId as Id<"categories">) : undefined,
         receiptStorageId,
       });
+      toast.success("Transaction saved");
       router.push("/");
     } catch (err) {
       console.error(err);
@@ -420,19 +427,26 @@ export default function AddTransactionPage() {
                     {categories === undefined ? (
                       <Skeleton className="h-12 w-full rounded-2xl" />
                     ) : (
-                      <select
+                      <Select
                         value={field.value ?? ""}
-                        onChange={(e) => {
-                          field.onChange(e.target.value);
+                        onValueChange={(v) => {
+                          field.onChange(v);
                           clearAutoFilled("categoryId");
                         }}
-                        className={`${selectClass} ${fieldState.invalid ? "border-negative" : "border-border"}`}
                       >
-                        <option value="">Select a category…</option>
-                        {filteredCategories.map((cat) => (
-                          <option key={cat._id} value={cat._id}>{cat.name}</option>
-                        ))}
-                      </select>
+                        <SelectTrigger
+                          className={`rounded-2xl border bg-surface min-h-[44px] px-4 text-text-primary ${fieldState.invalid ? "border-negative" : "border-border"}`}
+                        >
+                          <SelectValue placeholder="Select a category…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {filteredCategories.map((cat) => (
+                            <SelectItem key={cat._id} value={cat._id}>
+                              {cat.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     )}
                     <FormMessage />
                   </FormItem>

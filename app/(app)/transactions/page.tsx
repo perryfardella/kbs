@@ -6,11 +6,11 @@ import { api } from "@/convex/_generated/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Toggle } from "@/components/ui/toggle";
 import { ListContainer, ListItem } from "@/components/ui/list-container";
 import Link from "next/link";
 import { Search, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 type TransactionType =
   | "personal_expense"

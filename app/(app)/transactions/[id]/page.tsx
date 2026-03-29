@@ -7,12 +7,20 @@ import { useRouter, useParams } from "next/navigation";
 import { Id } from "@/convex/_generated/dataModel";
 import { Info, X, ChevronLeft, Trash2, ZoomIn } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Toggle } from "@/components/ui/toggle";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Form,
   FormField,
@@ -70,8 +78,6 @@ function getLoanImpact(type: TransactionType, amount: number): { text: string; p
       return null;
   }
 }
-
-const selectClass = "w-full rounded-2xl border bg-surface pl-4 pr-10 py-3 text-text-primary outline-none focus:border-accent min-h-[44px] appearance-none";
 
 export default function TransactionDetailPage() {
   const router = useRouter();
@@ -190,6 +196,7 @@ export default function TransactionDetailPage() {
         categoryId: data.categoryId ? (data.categoryId as Id<"categories">) : undefined,
         receiptStorageId,
       });
+      toast.success("Changes saved");
       router.push("/transactions");
     } catch (err) {
       console.error(err);
@@ -201,6 +208,7 @@ export default function TransactionDetailPage() {
     setDeleting(true);
     try {
       await removeTransaction({ transactionId });
+      toast.success("Transaction deleted");
       router.push("/transactions");
     } catch (err) {
       console.error(err);
@@ -376,16 +384,23 @@ export default function TransactionDetailPage() {
                   render={({ field, fieldState }) => (
                     <FormItem>
                       <FormLabel variant="muted">Category</FormLabel>
-                      <select
+                      <Select
                         value={field.value ?? ""}
-                        onChange={(e) => field.onChange(e.target.value)}
-                        className={`${selectClass} ${fieldState.invalid ? "border-negative" : "border-border"}`}
+                        onValueChange={field.onChange}
                       >
-                        <option value="">Select a category…</option>
-                        {filteredCategories.map((cat) => (
-                          <option key={cat._id} value={cat._id}>{cat.name}</option>
-                        ))}
-                      </select>
+                        <SelectTrigger
+                          className={`rounded-2xl border bg-surface min-h-[44px] px-4 text-text-primary ${fieldState.invalid ? "border-negative" : "border-border"}`}
+                        >
+                          <SelectValue placeholder="Select a category…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {filteredCategories.map((cat) => (
+                            <SelectItem key={cat._id} value={cat._id}>
+                              {cat.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
