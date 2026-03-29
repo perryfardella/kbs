@@ -44,3 +44,5 @@ convex/_generated/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+certificates
