@@ -34,7 +34,7 @@ function getDaysInMonth(month: number): number {
   return new Date(2000, month, 0).getDate();
 }
 
-const selectClass = "h-11 rounded-2xl border border-border bg-surface px-3 text-text-primary focus:outline-none focus:border-accent appearance-none";
+const selectClass = "h-11 rounded-2xl border border-border bg-surface pl-3 pr-10 text-text-primary focus:outline-none focus:border-accent appearance-none";
 
 const settingsSchema = z.object({
   ownerName: z.string().min(1, "Owner name is required"),

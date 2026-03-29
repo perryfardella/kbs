@@ -71,7 +71,7 @@ function getLoanImpact(type: TransactionType, amount: number): { text: string; p
   }
 }
 
-const selectClass = "w-full rounded-2xl border bg-surface px-4 py-3 text-text-primary outline-none focus:border-accent min-h-[44px] appearance-none";
+const selectClass = "w-full rounded-2xl border bg-surface pl-4 pr-10 py-3 text-text-primary outline-none focus:border-accent min-h-[44px] appearance-none";
 
 export default function TransactionDetailPage() {
   const router = useRouter();
