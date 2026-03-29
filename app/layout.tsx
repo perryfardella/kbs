@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Playfair_Display, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
+import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 
 const playfairDisplay = Playfair_Display({
   variable: "--font-playfair",
@@ -46,6 +47,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body className="min-h-full bg-bg text-text-primary antialiased">
+        <ServiceWorkerRegistration />
         <ConvexClientProvider>{children}</ConvexClientProvider>
       </body>
     </html>
