@@ -2,8 +2,12 @@
 
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 export function FAB() {
+  const pathname = usePathname();
+  if (pathname !== "/transactions") return null;
+
   return (
     <Link
       href="/add"

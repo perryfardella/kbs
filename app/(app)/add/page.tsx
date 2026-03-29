@@ -74,7 +74,7 @@ function todayString(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
-const selectClass = "w-full rounded-2xl border bg-surface px-4 py-3 text-text-primary outline-none focus:border-accent min-h-[44px] appearance-none";
+const selectClass = "w-full rounded-2xl border bg-surface pl-4 pr-10 py-3 text-text-primary outline-none focus:border-accent min-h-[44px] appearance-none";
 
 function AutoFilledBadge({ field, autoFilled }: { field: string; autoFilled: Set<string> }) {
   if (!autoFilled.has(field)) return null;
