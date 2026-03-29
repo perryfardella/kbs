@@ -141,24 +141,24 @@ export default function ReportsPage() {
         <p className="text-sm font-semibold text-text-muted uppercase tracking-wide">
           Date Range
         </p>
-        <div className="flex gap-3 items-center">
-          <div className="flex-1 space-y-1">
+        <div className="grid grid-cols-2 max-[320px]:grid-cols-1 gap-2">
+          <div className="min-w-0 space-y-1">
             <Label variant="muted">From</Label>
             <Input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="rounded-xl py-2 text-sm min-h-0 h-9"
+              className="rounded-xl py-2 text-sm min-h-0 h-9 w-full pr-2 min-w-[130px]"
               inputMode="none"
             />
           </div>
-          <div className="flex-1 space-y-1">
+          <div className="min-w-0 space-y-1">
             <Label variant="muted">To</Label>
             <Input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="rounded-xl py-2 text-sm min-h-0 h-9"
+              className="rounded-xl py-2 text-sm min-h-0 h-9 w-full pr-2 min-w-[130px]"
               inputMode="none"
             />
           </div>
