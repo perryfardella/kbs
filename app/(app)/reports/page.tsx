@@ -27,14 +27,10 @@ const TYPE_LABELS: Record<string, string> = {
   dividend_payment: "Dividend / Repayment",
 };
 
-function computeFiscalYear(fiscalYearEnd: string): {
-  startDate: string;
-  endDate: string;
-} {
+function computeFiscalYear(fiscalYearEnd: string): { startDate: string; endDate: string } {
   const [endMonth, endDay] = fiscalYearEnd.split("-").map(Number);
   const today = new Date();
   const todayYear = today.getFullYear();
-
   const thisYearEnd = new Date(todayYear, endMonth - 1, endDay);
 
   if (today <= thisYearEnd) {
@@ -42,14 +38,12 @@ function computeFiscalYear(fiscalYearEnd: string): {
     const prevEnd = new Date(todayYear - 1, endMonth - 1, endDay);
     const startObj = new Date(prevEnd);
     startObj.setDate(startObj.getDate() + 1);
-    const startDate = startObj.toISOString().slice(0, 10);
-    return { startDate, endDate };
+    return { startDate: startObj.toISOString().slice(0, 10), endDate };
   } else {
     const startObj = new Date(thisYearEnd);
     startObj.setDate(startObj.getDate() + 1);
-    const startDate = startObj.toISOString().slice(0, 10);
     const endDate = `${todayYear + 1}-${String(endMonth).padStart(2, "0")}-${String(endDay).padStart(2, "0")}`;
-    return { startDate, endDate };
+    return { startDate: startObj.toISOString().slice(0, 10), endDate };
   }
 }
 
@@ -64,39 +58,27 @@ function escapeCsv(value: string | null | undefined): string {
 
 export default function ReportsPage() {
   const settings = useQuery(api.settings.get);
-
-  const defaultFiscal =
-    settings?.fiscalYearEnd
-      ? computeFiscalYear(settings.fiscalYearEnd)
-      : null;
-
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    if (!initialized && defaultFiscal) {
-      setStartDate(defaultFiscal.startDate);
-      setEndDate(defaultFiscal.endDate);
+    if (!initialized && settings?.fiscalYearEnd) {
+      const fy = computeFiscalYear(settings.fiscalYearEnd);
+      setStartDate(fy.startDate);
+      setEndDate(fy.endDate);
       setInitialized(true);
     }
-  }, [defaultFiscal, initialized]);
-
-  const effectiveStart = startDate || defaultFiscal?.startDate || "";
-  const effectiveEnd = endDate || defaultFiscal?.endDate || "";
+  }, [settings, initialized]);
 
   const summary = useQuery(
     api.transactions.getSummary,
-    effectiveStart && effectiveEnd
-      ? { startDate: effectiveStart, endDate: effectiveEnd }
-      : "skip"
+    startDate && endDate ? { startDate, endDate } : "skip"
   );
 
   const exportTxns = useQuery(
     api.transactions.getForExport,
-    effectiveStart && effectiveEnd
-      ? { startDate: effectiveStart, endDate: effectiveEnd }
-      : "skip"
+    startDate && endDate ? { startDate, endDate } : "skip"
   );
 
   function handleExportCsv() {
@@ -123,12 +105,12 @@ export default function ReportsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `KBS_${effectiveStart}_${effectiveEnd}.csv`;
+    a.download = `KBS_${startDate}_${endDate}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
 
-  const isLoading = settings === undefined || summary === undefined;
+  const isLoading = summary === undefined;
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6 space-y-5">
@@ -207,7 +189,7 @@ export default function ReportsPage() {
       <Button
         variant="outline"
         onClick={handleExportCsv}
-        disabled={!exportTxns || !effectiveStart || !effectiveEnd}
+        disabled={!exportTxns || !startDate || !endDate}
         className="border-accent bg-accent/10 text-accent"
       >
         Export CSV

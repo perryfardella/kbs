@@ -34,11 +34,7 @@ export default function LoanLedgerPage() {
       {/* Balance Hero */}
       <Card className="p-5 space-y-1">
         <p className="text-sm text-text-muted font-medium">
-          {balance === undefined
-            ? "Loading…"
-            : isPositive
-            ? "Corp owes you"
-            : "You owe corp"}
+          {balance === undefined ? "Loading…" : isPositive ? "Corp owes you" : "You owe corp"}
         </p>
         {balance === undefined ? (
           <Skeleton className="h-10 w-48" />
@@ -50,7 +46,7 @@ export default function LoanLedgerPage() {
         )}
       </Card>
 
-      {/* Explainer */}
+      {/* Explainer — static, renders immediately */}
       <Card className="px-4 py-4 space-y-2 text-sm text-text-muted leading-relaxed">
         <p>
           <span className="text-positive font-semibold">Positive balance</span> — the
