@@ -55,21 +55,6 @@ export default function LoanLedgerPage() {
           )}
         </Card>
 
-      {/* Explainer — static, renders immediately */}
-      <Card className="px-4 py-4 space-y-2 text-sm text-text-muted leading-relaxed">
-        <p>
-          <span className="text-positive font-semibold">Positive balance</span> — the
-          corporation owes you money. This happens when you pay business expenses from
-          your personal funds, or transfer personal money into the business. You can
-          recover this by declaring a dividend or having the corp repay the loan.
-        </p>
-        <p>
-          <span className="text-negative font-semibold">Negative balance</span> — you
-          owe the corporation money. This happens when the corp pays your personal
-          expenses, or transfers money to your personal account beyond what it owes you.
-        </p>
-      </Card>
-
       {/* Ledger Table */}
       <div className="space-y-2">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide px-1">
