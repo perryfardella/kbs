@@ -42,13 +42,14 @@ One row per user. Created during onboarding.
 | Field | Type | Notes |
 |---|---|---|
 | `userId` | `id("users")` | FK to Convex auth users table |
-| `ownerName` | `string` | e.g. "Karina Smith" — used on CSV exports |
 | `companyName` | `string` | e.g. "Karina Smith NP Corp" — used on CSV exports |
 | `fiscalYearEnd` | `string` | `"MM-DD"` format e.g. `"03-31"` for March 31 |
 | `currency` | `string` | Default `"CAD"`, read-only for now |
 | `loanAlertThreshold` | `number` (optional) | If set, dashboard shows a banner when loan balance exceeds this amount |
 
 Index: `by_user` on `userId`
+
+Owner display name is read from Clerk (`user.fullName`) and not stored in the `settings` table.
 
 ---
 

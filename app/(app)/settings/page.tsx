@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
-import { useClerk } from "@clerk/nextjs";
+import { useClerk, useUser } from "@clerk/nextjs";
 import { api } from "@/convex/_generated/api";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -37,7 +37,6 @@ function getDaysInMonth(month: number): number {
 const selectClass = "h-11 rounded-2xl border border-border bg-surface pl-3 pr-10 text-text-primary focus:outline-none focus:border-accent appearance-none";
 
 const settingsSchema = z.object({
-  ownerName: z.string().min(1, "Owner name is required"),
   companyName: z.string().min(1, "Company name is required"),
   fiscalMonth: z.number().int().min(1).max(12),
   fiscalDay: z.number().int().min(1).max(31),
@@ -49,6 +48,7 @@ type SettingsFormValues = z.infer<typeof settingsSchema>;
 export default function SettingsPage() {
   const router = useRouter();
   const { signOut } = useClerk();
+  const { user, isLoaded } = useUser();
   const settings = useQuery(api.settings.get);
   const upsertSettings = useMutation(api.settings.upsert);
 
@@ -61,7 +61,6 @@ export default function SettingsPage() {
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
-      ownerName: "",
       companyName: "",
       fiscalMonth: 3,
       fiscalDay: 31,
@@ -73,7 +72,6 @@ export default function SettingsPage() {
     if (!initialized && settings) {
       const [mm, dd] = settings.fiscalYearEnd.split("-").map(Number);
       form.reset({
-        ownerName: settings.ownerName,
         companyName: settings.companyName,
         fiscalMonth: mm,
         fiscalDay: dd,
@@ -105,7 +103,6 @@ export default function SettingsPage() {
           ? Number(data.loanAlertThreshold)
           : undefined;
       await upsertSettings({
-        ownerName: data.ownerName.trim(),
         companyName: data.companyName.trim(),
         fiscalYearEnd: `${mm}-${dd}`,
         loanAlertThreshold: threshold,
@@ -130,25 +127,12 @@ export default function SettingsPage() {
       <div className="space-y-5 px-4 pt-4 pb-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSave)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="ownerName"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel variant="muted">Owner Name</FormLabel>
-                <FormControl>
-                  <Input
-                    type="text"
-                    inputMode="text"
-                    autoComplete="name"
-                    disabled={!initialized}
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div className="space-y-1">
+            <FormLabel variant="muted">Owner Name</FormLabel>
+            <div className="h-11 rounded-2xl border border-border bg-surface px-4 flex items-center text-text-muted select-none">
+              {isLoaded ? user?.fullName?.toLowerCase().split(" ").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ") ?? "" : "Loading..."}
+            </div>
+          </div>
 
           <FormField
             control={form.control}

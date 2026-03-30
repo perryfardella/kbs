@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { useUser } from "@clerk/nextjs";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -28,7 +29,6 @@ function getDaysInMonth(month: number): number {
 }
 
 const onboardingSchema = z.object({
-  ownerName: z.string().min(1, "Your name is required"),
   companyName: z.string().min(1, "Company name is required"),
   fiscalMonth: z.number().int().min(1).max(12),
   fiscalDay: z.number().int().min(1).max(31),
@@ -41,6 +41,7 @@ export default function OnboardingPage() {
   const settings = useQuery(api.settings.get);
   const upsertSettings = useMutation(api.settings.upsert);
   const seedCategories = useMutation(api.categories.seedDefaults);
+  const { user } = useUser();
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +50,6 @@ export default function OnboardingPage() {
     resolver: zodResolver(onboardingSchema),
     mode: "onChange",
     defaultValues: {
-      ownerName: "",
       companyName: "",
       fiscalMonth: 3,
       fiscalDay: 31,
@@ -78,7 +78,6 @@ export default function OnboardingPage() {
       const mm = String(data.fiscalMonth).padStart(2, "0");
       const dd = String(data.fiscalDay).padStart(2, "0");
       await upsertSettings({
-        ownerName: data.ownerName.trim(),
         companyName: data.companyName.trim(),
         fiscalYearEnd: `${mm}-${dd}`,
       });
@@ -104,28 +103,12 @@ export default function OnboardingPage() {
         <p className="mt-1 text-sm text-text-muted">Let&apos;s get you set up</p>
       </div>
 
+      <p className="mb-5 text-sm text-text-muted">
+        Signed in as <span className="font-medium text-text-primary">{user?.fullName ?? "Loading..."}</span>
+      </p>
+
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-5">
-          <FormField
-            control={form.control}
-            name="ownerName"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Your Name</FormLabel>
-                <FormControl>
-                  <Input
-                    type="text"
-                    inputMode="text"
-                    autoComplete="name"
-                    placeholder="e.g. Karina Smith"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
           <FormField
             control={form.control}
             name="companyName"
