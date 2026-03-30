@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery, useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { useClerk } from "@clerk/nextjs";
 import { api } from "@/convex/_generated/api";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -55,8 +54,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
@@ -87,11 +86,12 @@ export default function SettingsPage() {
   }, [settings, initialized, form]);
 
   const fiscalMonth = form.watch("fiscalMonth");
+  const maxDay = getDaysInMonth(fiscalMonth);
+
   useEffect(() => {
-    const maxDay = getDaysInMonth(fiscalMonth);
     const currentDay = form.getValues("fiscalDay");
     if (currentDay > maxDay) form.setValue("fiscalDay", maxDay);
-  }, [fiscalMonth, form]);
+  }, [fiscalMonth, maxDay, form]);
 
   async function handleSave(data: SettingsFormValues) {
     setSaving(true);
@@ -112,9 +112,7 @@ export default function SettingsPage() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Something went wrong."
-      );
+      setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setSaving(false);
     }
@@ -125,150 +123,141 @@ export default function SettingsPage() {
     router.replace("/login");
   }
 
-  const isLoading = settings === undefined;
-  const maxDay = getDaysInMonth(fiscalMonth);
-
   return (
     <div className="mx-auto max-w-lg px-4 py-6 space-y-5">
       <h1 className="font-display text-2xl font-semibold text-text-primary">
         Settings
       </h1>
 
-      {isLoading ? (
-        <div className="space-y-4">
-          <Skeleton className="h-11 w-full rounded-2xl" />
-          <Skeleton className="h-11 w-full rounded-2xl" />
-          <Skeleton className="h-11 w-full rounded-2xl" />
-          <Skeleton className="h-11 w-full rounded-2xl" />
-          <Skeleton className="h-12 w-full rounded-2xl" />
-        </div>
-      ) : (
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSave)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="ownerName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel variant="muted">Owner Name</FormLabel>
-                  <FormControl>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleSave)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="ownerName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel variant="muted">Owner Name</FormLabel>
+                <FormControl>
+                  <Input
+                    type="text"
+                    inputMode="text"
+                    autoComplete="name"
+                    disabled={!initialized}
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="companyName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel variant="muted">Company Name</FormLabel>
+                <FormControl>
+                  <Input type="text" inputMode="text" disabled={!initialized} {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormItem>
+            <FormLabel variant="muted">Financial Year End</FormLabel>
+            <div className="flex gap-3">
+              <FormField
+                control={form.control}
+                name="fiscalMonth"
+                render={({ field }) => (
+                  <select
+                    value={field.value}
+                    onChange={(e) => field.onChange(Number(e.target.value))}
+                    disabled={!initialized}
+                    className={`flex-1 ${selectClass}`}
+                  >
+                    {MONTHS.map((name, i) => (
+                      <option key={i + 1} value={i + 1}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="fiscalDay"
+                render={({ field }) => (
+                  <select
+                    value={field.value}
+                    onChange={(e) => field.onChange(Number(e.target.value))}
+                    disabled={!initialized}
+                    className={`w-24 ${selectClass}`}
+                  >
+                    {Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              />
+            </div>
+          </FormItem>
+
+          <FormItem>
+            <FormLabel variant="muted">Currency</FormLabel>
+            <div className="h-11 rounded-2xl border border-border bg-surface px-4 flex items-center text-text-muted select-none">
+              CAD
+            </div>
+          </FormItem>
+
+          <FormField
+            control={form.control}
+            name="loanAlertThreshold"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>
+                  Loan Alert Threshold{" "}
+                  <span className="text-text-muted font-normal">(optional)</span>
+                </FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted text-sm pointer-events-none">
+                      $
+                    </span>
                     <Input
-                      type="text"
-                      inputMode="text"
-                      autoComplete="name"
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="any"
+                      placeholder="e.g. 10000"
+                      className="pl-8"
+                      disabled={!initialized}
                       {...field}
                     />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="companyName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel variant="muted">Company Name</FormLabel>
-                  <FormControl>
-                    <Input type="text" inputMode="text" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormItem>
-              <FormLabel variant="muted">Financial Year End</FormLabel>
-              <div className="flex gap-3">
-                <FormField
-                  control={form.control}
-                  name="fiscalMonth"
-                  render={({ field }) => (
-                    <select
-                      value={field.value}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
-                      className={`flex-1 ${selectClass}`}
-                    >
-                      {MONTHS.map((name, i) => (
-                        <option key={i + 1} value={i + 1}>
-                          {name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="fiscalDay"
-                  render={({ field }) => (
-                    <select
-                      value={field.value}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
-                      className={`w-24 ${selectClass}`}
-                    >
-                      {Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => (
-                        <option key={d} value={d}>
-                          {d}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                />
-              </div>
-            </FormItem>
-
-            <FormItem>
-              <FormLabel variant="muted">Currency</FormLabel>
-              <div className="h-11 rounded-2xl border border-border bg-surface px-4 flex items-center text-text-muted select-none">
-                CAD
-              </div>
-            </FormItem>
-
-            <FormField
-              control={form.control}
-              name="loanAlertThreshold"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    Loan Alert Threshold{" "}
-                    <span className="text-text-muted font-normal">(optional)</span>
-                  </FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted text-sm pointer-events-none">
-                        $
-                      </span>
-                      <Input
-                        type="number"
-                        inputMode="decimal"
-                        min="0"
-                        step="any"
-                        placeholder="e.g. 10000"
-                        className="pl-8"
-                        {...field}
-                      />
-                    </div>
-                  </FormControl>
-                  <FormDescription>
-                    Shows a dashboard banner when the loan balance exceeds this amount
-                  </FormDescription>
-                </FormItem>
-              )}
-            />
-
-            {error && (
-              <Alert variant="negative">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+                  </div>
+                </FormControl>
+                <FormDescription>
+                  Shows a dashboard banner when the loan balance exceeds this amount
+                </FormDescription>
+              </FormItem>
             )}
+          />
 
-            <Button type="submit" disabled={saving}>
-              {saving ? "Saving…" : saved ? "Saved!" : "Save Settings"}
-            </Button>
-          </form>
-        </Form>
-      )}
+          {error && (
+            <Alert variant="negative">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <Button type="submit" disabled={saving || !initialized}>
+            {saving ? "Saving…" : saved ? "Saved!" : "Save Settings"}
+          </Button>
+        </form>
+      </Form>
 
       {/* Categories Link */}
       <Button variant="secondary" size="sm" className="w-full justify-between px-4" asChild>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, usePaginatedQuery } from "convex/react";
+import { usePaginatedQuery, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
@@ -9,13 +9,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ListContainer, ListItem } from "@/components/ui/list-container";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
-
-const now = new Date();
-const year = now.getFullYear();
-const month = now.getMonth();
-const startOfMonth = `${year}-${String(month + 1).padStart(2, "0")}-01`;
-const lastDay = new Date(year, month + 1, 0).getDate();
-const endOfMonth = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
 function formatCAD(amount: number): string {
   return new Intl.NumberFormat("en-CA", {
@@ -45,14 +38,21 @@ type TransactionType =
 type BadgeVariant = "personal" | "business" | "transfer";
 
 const typeConfig: Record<TransactionType, { label: string; variant: BadgeVariant }> = {
-  personal_expense:             { label: "Personal",          variant: "personal" },
-  business_expense:             { label: "Business",          variant: "business" },
-  business_expense_personal_pay:{ label: "Biz (Personal Pay)",variant: "business" },
-  personal_expense_business_pay:{ label: "Personal (Biz Pay)",variant: "personal" },
-  transfer_to_personal:         { label: "Corp → Me",         variant: "transfer" },
-  transfer_to_business:         { label: "Me → Corp",         variant: "transfer" },
-  dividend_payment:             { label: "Dividend",          variant: "transfer" },
+  personal_expense:              { label: "Personal",           variant: "personal" },
+  business_expense:              { label: "Business",           variant: "business" },
+  business_expense_personal_pay: { label: "Biz (Personal Pay)", variant: "business" },
+  personal_expense_business_pay: { label: "Personal (Biz Pay)", variant: "personal" },
+  transfer_to_personal:          { label: "Corp → Me",          variant: "transfer" },
+  transfer_to_business:          { label: "Me → Corp",          variant: "transfer" },
+  dividend_payment:              { label: "Dividend",            variant: "transfer" },
 };
+
+const now = new Date();
+const year = now.getFullYear();
+const month = now.getMonth();
+const startOfMonth = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+const lastDay = new Date(year, month + 1, 0).getDate();
+const endOfMonth = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
 export default function DashboardPage() {
   const balance = useQuery(api.transactions.getShareholderLoanBalance);
@@ -69,8 +69,8 @@ export default function DashboardPage() {
 
   const isPositive = (balance ?? 0) >= 0;
   const showAlert =
+    balance !== undefined &&
     settings?.loanAlertThreshold != null &&
-    balance != null &&
     Math.abs(balance) > settings.loanAlertThreshold;
 
   return (
@@ -78,11 +78,7 @@ export default function DashboardPage() {
       {/* Shareholder Loan Card */}
       <Card className="p-5 space-y-1">
         <p className="text-sm text-text-muted font-medium">
-          {balance === undefined
-            ? "Loading…"
-            : isPositive
-            ? "Corp owes you"
-            : "You owe corp"}
+          {balance === undefined ? "Loading…" : isPositive ? "Corp owes you" : "You owe corp"}
         </p>
         {balance === undefined ? (
           <Skeleton className="h-10 w-48" />
