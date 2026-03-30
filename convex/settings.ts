@@ -15,7 +15,6 @@ export const get = query({
 
 export const upsert = mutation({
   args: {
-    ownerName: v.string(),
     companyName: v.string(),
     fiscalYearEnd: v.string(),
     currency: v.optional(v.string()),
@@ -32,7 +31,6 @@ export const upsert = mutation({
 
     const data = {
       userId: identity.tokenIdentifier,
-      ownerName: args.ownerName,
       companyName: args.companyName,
       fiscalYearEnd: args.fiscalYearEnd,
       currency: args.currency ?? "CAD",

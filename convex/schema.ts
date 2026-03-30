@@ -4,7 +4,6 @@ import { v } from "convex/values";
 export default defineSchema({
   settings: defineTable({
     userId: v.string(), // tokenIdentifier from Clerk
-    ownerName: v.string(),
     companyName: v.string(),
     fiscalYearEnd: v.string(), // "MM-DD" format
     currency: v.string(), // "CAD"

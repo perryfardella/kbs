@@ -37,7 +37,6 @@ function getDaysInMonth(month: number): number {
 const selectClass = "h-11 rounded-2xl border border-border bg-surface pl-3 pr-10 text-text-primary focus:outline-none focus:border-accent appearance-none";
 
 const settingsSchema = z.object({
-  ownerName: z.string().min(1, "Owner name is required"),
   companyName: z.string().min(1, "Company name is required"),
   fiscalMonth: z.number().int().min(1).max(12),
   fiscalDay: z.number().int().min(1).max(31),
@@ -61,7 +60,6 @@ export default function SettingsPage() {
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
-      ownerName: "",
       companyName: "",
       fiscalMonth: 3,
       fiscalDay: 31,
@@ -73,7 +71,6 @@ export default function SettingsPage() {
     if (!initialized && settings) {
       const [mm, dd] = settings.fiscalYearEnd.split("-").map(Number);
       form.reset({
-        ownerName: settings.ownerName,
         companyName: settings.companyName,
         fiscalMonth: mm,
         fiscalDay: dd,
@@ -104,7 +101,6 @@ export default function SettingsPage() {
           ? Number(data.loanAlertThreshold)
           : undefined;
       await upsertSettings({
-        ownerName: data.ownerName.trim(),
         companyName: data.companyName.trim(),
         fiscalYearEnd: `${mm}-${dd}`,
         loanAlertThreshold: threshold,
@@ -145,25 +141,6 @@ export default function SettingsPage() {
       ) : (
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSave)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="ownerName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel variant="muted">Owner Name</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="text"
-                      inputMode="text"
-                      autoComplete="name"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
             <FormField
               control={form.control}
               name="companyName"

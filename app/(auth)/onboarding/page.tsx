@@ -28,7 +28,6 @@ function getDaysInMonth(month: number): number {
 }
 
 const onboardingSchema = z.object({
-  ownerName: z.string().min(1, "Your name is required"),
   companyName: z.string().min(1, "Company name is required"),
   fiscalMonth: z.number().int().min(1).max(12),
   fiscalDay: z.number().int().min(1).max(31),
@@ -49,7 +48,6 @@ export default function OnboardingPage() {
     resolver: zodResolver(onboardingSchema),
     mode: "onChange",
     defaultValues: {
-      ownerName: "",
       companyName: "",
       fiscalMonth: 3,
       fiscalDay: 31,
@@ -78,7 +76,6 @@ export default function OnboardingPage() {
       const mm = String(data.fiscalMonth).padStart(2, "0");
       const dd = String(data.fiscalDay).padStart(2, "0");
       await upsertSettings({
-        ownerName: data.ownerName.trim(),
         companyName: data.companyName.trim(),
         fiscalYearEnd: `${mm}-${dd}`,
       });
@@ -106,26 +103,6 @@ export default function OnboardingPage() {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-5">
-          <FormField
-            control={form.control}
-            name="ownerName"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Your Name</FormLabel>
-                <FormControl>
-                  <Input
-                    type="text"
-                    inputMode="text"
-                    autoComplete="name"
-                    placeholder="e.g. Karina Smith"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
           <FormField
             control={form.control}
             name="companyName"
