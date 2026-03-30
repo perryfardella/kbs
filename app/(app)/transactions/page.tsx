@@ -124,15 +124,6 @@ export default function TransactionsPage() {
             onChange={(e) => setSearch(e.target.value)}
             className="flex-1 bg-transparent py-2.5 text-sm text-text-primary outline-none placeholder:text-text-muted"
           />
-          {search && (
-            <button
-              type="button"
-              onClick={() => setSearch("")}
-              className="flex items-center justify-center w-6 h-6 rounded-full active:scale-95 transition-transform"
-            >
-              <X size={14} className="text-text-muted" />
-            </button>
-          )}
         </div>
 
         {/* Filter chips */}
