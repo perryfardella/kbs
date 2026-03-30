@@ -36,6 +36,7 @@ import {
   type TransactionFormValues,
 } from "@/app/(app)/transactions/transactionSchema";
 import { compressImage, fileToBase64 } from "@/lib/compressImage";
+import { PageHeader } from "@/components/PageHeader";
 
 type TransactionType =
   | "personal_expense"
@@ -273,15 +274,16 @@ export default function AddTransactionPage() {
 
   return (
     <div className="mx-auto max-w-lg">
-      {/* Header */}
-      <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-3 bg-bg border-b border-border">
-        <Button variant="ghost" size="icon" asChild className="-ml-2">
-          <Link href="/"><ChevronLeft size={20} className="text-text-muted" /></Link>
-        </Button>
-        <h1 className="font-display text-lg font-semibold text-text-primary">
-          Add Transaction
-        </h1>
-      </div>
+      <PageHeader
+        title="Add Transaction"
+        left={
+          <Button variant="ghost" size="icon" asChild className="-ml-2">
+            <Link href="/">
+              <ChevronLeft size={20} className="text-text-muted" />
+            </Link>
+          </Button>
+        }
+      />
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSave)}>

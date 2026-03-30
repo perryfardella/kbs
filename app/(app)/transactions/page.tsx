@@ -11,6 +11,7 @@ import { ListContainer, ListItem } from "@/components/ui/list-container";
 import Link from "next/link";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/PageHeader";
 
 type TransactionType =
   | "personal_expense"
@@ -109,93 +110,89 @@ export default function TransactionsPage() {
 
   return (
     <div className="mx-auto max-w-lg">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-bg border-b border-border">
-        <div className="px-4 pt-4 pb-3 space-y-3">
-          <h1 className="font-display text-xl font-semibold text-text-primary">
-            Transactions
-          </h1>
+      <PageHeader title="Transactions" />
 
-          {/* Search — inline, only used here so not extracted to a component */}
-          <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface px-3 min-h-[44px]">
-            <Search size={16} className="text-text-muted shrink-0" />
-            <input
-              type="search"
-              inputMode="search"
-              placeholder="Search description or notes…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted py-2.5"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                className="flex items-center justify-center w-6 h-6 rounded-full active:scale-95 transition-transform"
-              >
-                <X size={14} className="text-text-muted" />
-              </button>
-            )}
-          </div>
-
-          {/* Filter chips */}
-          <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-0.5">
-            {chips.map((c) => (
-              <Toggle
-                key={c.value}
-                pressed={chip === c.value}
-                onPressedChange={() => setChip(c.value)}
-              >
-                {c.label}
-              </Toggle>
-            ))}
-            <Toggle
-              pressed={showDateFilters || !!(startDate || endDate)}
-              onPressedChange={() => setShowDateFilters((v) => !v)}
+      <div className="px-4 pt-4 pb-6 space-y-4">
+        {/* Search — inline, only used here so not extracted to a component */}
+        <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface px-3 min-h-[44px]">
+          <Search size={16} className="text-text-muted shrink-0" />
+          <input
+            type="search"
+            inputMode="search"
+            placeholder="Search description or notes…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="flex-1 bg-transparent py-2.5 text-sm text-text-primary outline-none placeholder:text-text-muted"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="flex items-center justify-center w-6 h-6 rounded-full active:scale-95 transition-transform"
             >
-              Date Range
-            </Toggle>
-          </div>
-
-          {/* Date range inputs */}
-          {showDateFilters && (
-            <div className="flex gap-3">
-              <div className="flex-1 space-y-1">
-                <label className="block text-xs text-text-muted">From</label>
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="rounded-xl py-2 text-sm min-h-0 h-10 font-mono"
-                />
-              </div>
-              <div className="flex-1 space-y-1">
-                <label className="block text-xs text-text-muted">To</label>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="rounded-xl py-2 text-sm min-h-0 h-10 font-mono"
-                />
-              </div>
-              {(startDate || endDate) && (
-                <div className="flex items-end pb-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => { setStartDate(""); setEndDate(""); }}
-                  >
-                    <X size={16} />
-                  </Button>
-                </div>
-              )}
-            </div>
+              <X size={14} className="text-text-muted" />
+            </button>
           )}
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="px-4 pb-6 space-y-4 mt-4">
+        {/* Filter chips */}
+        <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-0.5">
+          {chips.map((c) => (
+            <Toggle
+              key={c.value}
+              pressed={chip === c.value}
+              onPressedChange={() => setChip(c.value)}
+            >
+              {c.label}
+            </Toggle>
+          ))}
+          <Toggle
+            pressed={showDateFilters || !!(startDate || endDate)}
+            onPressedChange={() => setShowDateFilters((v) => !v)}
+          >
+            Date Range
+          </Toggle>
+        </div>
+
+        {/* Date range inputs */}
+        {showDateFilters && (
+          <div className="flex gap-3">
+            <div className="flex-1 space-y-1">
+              <label className="block text-xs text-text-muted">From</label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="rounded-xl py-2 text-sm min-h-0 h-10 font-mono"
+              />
+            </div>
+            <div className="flex-1 space-y-1">
+              <label className="block text-xs text-text-muted">To</label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="rounded-xl py-2 text-sm min-h-0 h-10 font-mono"
+              />
+            </div>
+            {(startDate || endDate) && (
+              <div className="flex items-end pb-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setStartDate("");
+                    setEndDate("");
+                  }}
+                >
+                  <X size={16} />
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* List content */}
         {isLoading ? (
           <div className="space-y-4">
             {Array.from({ length: 3 }).map((_, gi) => (

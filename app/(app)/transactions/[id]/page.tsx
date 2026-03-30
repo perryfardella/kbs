@@ -10,6 +10,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Toggle } from "@/components/ui/toggle";
@@ -232,23 +233,26 @@ export default function TransactionDetailPage() {
 
   return (
     <div className="mx-auto max-w-lg">
-      {/* Header */}
-      <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-bg border-b border-border">
-        <div className="flex items-center gap-2">
+      <PageHeader
+        title="Edit Transaction"
+        left={
           <Button variant="ghost" size="icon" asChild className="-ml-2">
-            <Link href="/transactions"><ChevronLeft size={20} className="text-text-muted" /></Link>
+            <Link href="/transactions">
+              <ChevronLeft size={20} className="text-text-muted" />
+            </Link>
           </Button>
-          <h1 className="font-display text-lg font-semibold text-text-primary">Edit Transaction</h1>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setShowDeleteDialog(true)}
-          aria-label="Delete transaction"
-        >
-          <Trash2 size={18} className="text-negative" />
-        </Button>
-      </div>
+        }
+        right={
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowDeleteDialog(true)}
+            aria-label="Delete transaction"
+          >
+            <Trash2 size={18} className="text-negative" />
+          </Button>
+        }
+      />
 
       {isLoading ? (
         <div className="px-4 pt-5 space-y-5 pb-28">

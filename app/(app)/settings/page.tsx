@@ -21,6 +21,7 @@ import {
   FormDescription,
   FormMessage,
 } from "@/components/ui/form";
+import { PageHeader } from "@/components/PageHeader";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
@@ -124,13 +125,11 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6 space-y-5">
-      <h1 className="font-display text-2xl font-semibold text-text-primary">
-        Settings
-      </h1>
-
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSave)} className="space-y-4">
+    <div className="mx-auto max-w-lg">
+      <PageHeader title="Settings" />
+      <div className="space-y-5 px-4 pt-4 pb-6">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSave)} className="space-y-4">
           <FormField
             control={form.control}
             name="ownerName"
@@ -270,11 +269,14 @@ export default function SettingsPage() {
       {/* Sign Out */}
       <div className="pt-2 pb-2">
         {!showSignOutConfirm ? (
-          <Button variant="destructive" onClick={() => setShowSignOutConfirm(true)}>
+          <Button
+            variant="destructive"
+            onClick={() => setShowSignOutConfirm(true)}
+          >
             Sign Out
           </Button>
         ) : (
-          <Card className="p-4 space-y-3 border-negative/30 bg-negative/10">
+          <Card className="border-negative/30 bg-negative/10 p-4 space-y-3">
             <p className="text-sm text-text-primary text-center">
               Are you sure you want to sign out?
             </p>
@@ -297,6 +299,7 @@ export default function SettingsPage() {
             </div>
           </Card>
         )}
+      </div>
       </div>
     </div>
   );

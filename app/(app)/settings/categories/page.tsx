@@ -16,6 +16,7 @@ import { ChevronLeft, Archive, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { PageHeader } from "@/components/PageHeader";
 
 type Tab = "personal" | "business";
 
@@ -193,31 +194,38 @@ export default function CategoriesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6 space-y-5">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button variant="secondary" size="icon" asChild>
-          <Link href="/settings">
-            <ChevronLeft size={18} className="text-text-muted" />
-          </Link>
-        </Button>
-        <h1 className="font-display text-2xl font-semibold text-text-primary">
-          Categories
-        </h1>
+    <div className="mx-auto max-w-lg">
+      <PageHeader
+        title="Categories"
+        left={
+          <Button variant="secondary" size="icon" asChild className="-ml-2">
+            <Link href="/settings">
+              <ChevronLeft size={18} className="text-text-muted" />
+            </Link>
+          </Button>
+        }
+      />
+      <div className="space-y-5 px-4 pt-4 pb-6">
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => {
+            setActiveTab(v as Tab);
+            form.reset();
+          }}
+          className="flex flex-col gap-4"
+        >
+          <TabsList className="w-full">
+            <TabsTrigger value="personal">Personal</TabsTrigger>
+            <TabsTrigger value="business">Business</TabsTrigger>
+          </TabsList>
+          <TabsContent value="personal" className="flex flex-col gap-4">
+            <CategoryList cats={personalCategories} />
+          </TabsContent>
+          <TabsContent value="business" className="flex flex-col gap-4">
+            <CategoryList cats={businessCategories} />
+          </TabsContent>
+        </Tabs>
       </div>
-
-      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as Tab); form.reset(); }} className="flex flex-col gap-4">
-        <TabsList className="w-full">
-          <TabsTrigger value="personal">Personal</TabsTrigger>
-          <TabsTrigger value="business">Business</TabsTrigger>
-        </TabsList>
-        <TabsContent value="personal" className="flex flex-col gap-4">
-          <CategoryList cats={personalCategories} />
-        </TabsContent>
-        <TabsContent value="business" className="flex flex-col gap-4">
-          <CategoryList cats={businessCategories} />
-        </TabsContent>
-      </Tabs>
     </div>
   );
 }

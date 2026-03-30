@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/PageHeader";
 
 function formatCAD(amount: number): string {
   return new Intl.NumberFormat("en-CA", {
@@ -113,87 +114,86 @@ export default function ReportsPage() {
   const isLoading = summary === undefined;
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6 space-y-5">
-      <h1 className="font-display text-2xl font-semibold text-text-primary">
-        Reports
-      </h1>
-
-      {/* Date Range Picker */}
-      <Card className="p-4 space-y-3">
-        <p className="text-sm font-semibold text-text-muted uppercase tracking-wide">
-          Date Range
-        </p>
-        <div className="grid grid-cols-2 max-[320px]:grid-cols-1 gap-2">
-          <div className="min-w-0 space-y-1">
-            <Label variant="muted">From</Label>
-            <Input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="rounded-xl py-2 text-sm min-h-0 h-9 w-full pr-2 min-w-[130px]"
-              inputMode="none"
-            />
+    <div className="mx-auto max-w-lg">
+      <PageHeader title="Reports" />
+      <div className="space-y-5 px-4 pt-4 pb-6">
+        {/* Date Range Picker */}
+        <Card className="p-4 space-y-3">
+          <p className="text-sm font-semibold text-text-muted uppercase tracking-wide">
+            Date Range
+          </p>
+          <div className="grid grid-cols-2 max-[320px]:grid-cols-1 gap-2">
+            <div className="min-w-0 space-y-1">
+              <Label variant="muted">From</Label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="rounded-xl py-2 text-sm min-h-0 h-9 w-full pr-2 min-w-[130px]"
+                inputMode="none"
+              />
+            </div>
+            <div className="min-w-0 space-y-1">
+              <Label variant="muted">To</Label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="rounded-xl py-2 text-sm min-h-0 h-9 w-full pr-2 min-w-[130px]"
+                inputMode="none"
+              />
+            </div>
           </div>
-          <div className="min-w-0 space-y-1">
-            <Label variant="muted">To</Label>
-            <Input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="rounded-xl py-2 text-sm min-h-0 h-9 w-full pr-2 min-w-[130px]"
-              inputMode="none"
-            />
+          {settings?.fiscalYearEnd && (
+            <Button
+              variant="link"
+              size="sm"
+              className="text-xs h-auto p-0"
+              onClick={() => {
+                const fy = computeFiscalYear(settings.fiscalYearEnd);
+                setStartDate(fy.startDate);
+                setEndDate(fy.endDate);
+              }}
+            >
+              Reset to current financial year
+            </Button>
+          )}
+        </Card>
+
+        {/* Summary Cards */}
+        <div className="space-y-2">
+          <p className="px-1 text-sm font-semibold text-text-muted uppercase tracking-wide">
+            Summary
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <SummaryCard label="Personal Expenses" value={summary?.totalPersonalExpenses} isLoading={isLoading} colour="text-badge-personal" />
+            <SummaryCard label="Business Expenses" value={summary?.totalBusinessExpenses} isLoading={isLoading} colour="text-badge-business" />
+            <SummaryCard label="Corp → Personal" value={summary?.totalTransferToPersonal} isLoading={isLoading} colour="text-badge-transfer" />
+            <SummaryCard label="Personal → Business" value={summary?.totalTransferToBusiness} isLoading={isLoading} colour="text-badge-transfer" />
+            <SummaryCard label="Net Loan Change" value={summary?.netShareholderLoanChange} isLoading={isLoading} signed />
+            <Card className="p-4 space-y-1">
+              <p className="text-xs text-text-muted">Transactions</p>
+              {isLoading ? (
+                <Skeleton className="h-6 w-12" />
+              ) : (
+                <p className="font-mono text-xl font-semibold text-text-primary">
+                  {summary?.transactionCount ?? 0}
+                </p>
+              )}
+            </Card>
           </div>
         </div>
-        {settings?.fiscalYearEnd && (
-          <Button
-            variant="link"
-            size="sm"
-            className="text-xs h-auto p-0"
-            onClick={() => {
-              const fy = computeFiscalYear(settings.fiscalYearEnd);
-              setStartDate(fy.startDate);
-              setEndDate(fy.endDate);
-            }}
-          >
-            Reset to current financial year
-          </Button>
-        )}
-      </Card>
 
-      {/* Summary Cards */}
-      <div className="space-y-2">
-        <p className="text-sm font-semibold text-text-muted uppercase tracking-wide px-1">
-          Summary
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          <SummaryCard label="Personal Expenses" value={summary?.totalPersonalExpenses} isLoading={isLoading} colour="text-badge-personal" />
-          <SummaryCard label="Business Expenses" value={summary?.totalBusinessExpenses} isLoading={isLoading} colour="text-badge-business" />
-          <SummaryCard label="Corp → Personal" value={summary?.totalTransferToPersonal} isLoading={isLoading} colour="text-badge-transfer" />
-          <SummaryCard label="Personal → Business" value={summary?.totalTransferToBusiness} isLoading={isLoading} colour="text-badge-transfer" />
-          <SummaryCard label="Net Loan Change" value={summary?.netShareholderLoanChange} isLoading={isLoading} signed />
-          <Card className="p-4 space-y-1">
-            <p className="text-xs text-text-muted">Transactions</p>
-            {isLoading ? (
-              <Skeleton className="h-6 w-12" />
-            ) : (
-              <p className="font-mono text-xl font-semibold text-text-primary">
-                {summary?.transactionCount ?? 0}
-              </p>
-            )}
-          </Card>
-        </div>
+        {/* Export */}
+        <Button
+          variant="outline"
+          onClick={handleExportCsv}
+          disabled={!exportTxns || !startDate || !endDate}
+          className="border-accent bg-accent/10 text-accent"
+        >
+          Export CSV
+        </Button>
       </div>
-
-      {/* Export */}
-      <Button
-        variant="outline"
-        onClick={handleExportCsv}
-        disabled={!exportTxns || !startDate || !endDate}
-        className="border-accent bg-accent/10 text-accent"
-      >
-        Export CSV
-      </Button>
     </div>
   );
 }

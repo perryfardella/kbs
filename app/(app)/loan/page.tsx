@@ -5,6 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import { ListContainer } from "@/components/ui/list-container";
+import { PageHeader } from "@/components/PageHeader";
 
 function formatCAD(amount: number): string {
   return new Intl.NumberFormat("en-CA", {
@@ -30,21 +31,29 @@ export default function LoanLedgerPage() {
   const isPositive = (balance ?? 0) >= 0;
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6 space-y-5">
-      {/* Balance Hero */}
-      <Card className="p-5 space-y-1">
-        <p className="text-sm text-text-muted font-medium">
-          {balance === undefined ? "Loading…" : isPositive ? "Corp owes you" : "You owe corp"}
-        </p>
-        {balance === undefined ? (
-          <Skeleton className="h-10 w-48" />
-        ) : (
-          <p className={`font-mono text-4xl font-semibold tracking-tight ${isPositive ? "text-positive" : "text-negative"}`}>
-            {isPositive ? "+" : "-"}
-            {formatCAD(balance)}
+    <div className="mx-auto max-w-lg">
+      <PageHeader title="Loan" />
+      <div className="px-4 pt-4 pb-6 space-y-5">
+        {/* Balance Hero */}
+        <Card className="p-5 space-y-1">
+          <p className="text-sm text-text-muted font-medium">
+            {balance === undefined
+              ? "Loading…"
+              : isPositive
+                ? "Corp owes you"
+                : "You owe corp"}
           </p>
-        )}
-      </Card>
+          {balance === undefined ? (
+            <Skeleton className="h-10 w-48" />
+          ) : (
+            <p
+              className={`font-mono text-4xl font-semibold tracking-tight ${isPositive ? "text-positive" : "text-negative"}`}
+            >
+              {isPositive ? "+" : "-"}
+              {formatCAD(balance)}
+            </p>
+          )}
+        </Card>
 
       {/* Explainer — static, renders immediately */}
       <Card className="px-4 py-4 space-y-2 text-sm text-text-muted leading-relaxed">
@@ -125,6 +134,7 @@ export default function LoanLedgerPage() {
           </>
         )}
       </div>
+    </div>
     </div>
   );
 }

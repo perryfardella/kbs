@@ -1,25 +1,22 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { ListContainer, ListItem } from "@/components/ui/list-container";
+import { PageHeader } from "@/components/PageHeader";
 
 export default function TransactionsLoading() {
   return (
     <div className="mx-auto max-w-lg">
-      {/* Mirrors sticky header structure */}
-      <div className="sticky top-0 z-10 bg-bg border-b border-border">
-        <div className="px-4 pt-4 pb-3 space-y-3">
-          <Skeleton className="h-7 w-36" />
-          <Skeleton className="h-11 w-full rounded-2xl" />
-          <div className="flex gap-2">
-            <Skeleton className="h-8 w-10 rounded-full shrink-0" />
-            <Skeleton className="h-8 w-20 rounded-full shrink-0" />
-            <Skeleton className="h-8 w-24 rounded-full shrink-0" />
-            <Skeleton className="h-8 w-24 rounded-full shrink-0" />
-            <Skeleton className="h-8 w-28 rounded-full shrink-0" />
-          </div>
-        </div>
-      </div>
+      <PageHeader title={<Skeleton className="h-7 w-36" />} />
 
-      <div className="px-4 pb-6 space-y-4 mt-4">
+      <div className="px-4 pt-4 pb-6 space-y-4">
+        <Skeleton className="h-11 w-full rounded-2xl" />
+        <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-0.5">
+          <Skeleton className="h-8 w-10 rounded-full shrink-0" />
+          <Skeleton className="h-8 w-20 rounded-full shrink-0" />
+          <Skeleton className="h-8 w-24 rounded-full shrink-0" />
+          <Skeleton className="h-8 w-24 rounded-full shrink-0" />
+          <Skeleton className="h-8 w-28 rounded-full shrink-0" />
+        </div>
+
         {Array.from({ length: 3 }).map((_, gi) => (
           <div key={gi} className="space-y-2">
             <Skeleton className="h-4 w-32" />

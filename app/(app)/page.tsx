@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ListContainer, ListItem } from "@/components/ui/list-container";
+import { PageHeader } from "@/components/PageHeader";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 
@@ -74,101 +75,106 @@ export default function DashboardPage() {
     Math.abs(balance) > settings.loanAlertThreshold;
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6 space-y-5">
-      {/* Shareholder Loan Card */}
-      <Card className="p-5 space-y-1">
-        <p className="text-sm text-text-muted font-medium">
-          {balance === undefined ? "Loading…" : isPositive ? "Corp owes you" : "You owe corp"}
-        </p>
-        {balance === undefined ? (
-          <Skeleton className="h-10 w-48" />
-        ) : (
-          <p className={`font-mono text-4xl font-semibold tracking-tight ${isPositive ? "text-positive" : "text-negative"}`}>
-            {isPositive ? "+" : "-"}
-            {formatCAD(balance)}
+    <div className="mx-auto max-w-lg">
+      <PageHeader title="Dashboard" />
+      <div className="space-y-5 px-4 pt-4 pb-6">
+        {/* Shareholder Loan Card */}
+        <Card className="p-5 space-y-1">
+          <p className="text-sm text-text-muted font-medium">
+            {balance === undefined ? "Loading…" : isPositive ? "Corp owes you" : "You owe corp"}
           </p>
+          {balance === undefined ? (
+            <Skeleton className="h-10 w-48" />
+          ) : (
+            <p
+              className={`font-mono text-4xl font-semibold tracking-tight ${isPositive ? "text-positive" : "text-negative"}`}
+            >
+              {isPositive ? "+" : "-"}
+              {formatCAD(balance)}
+            </p>
+          )}
+        </Card>
+
+        {/* Loan Alert Banner */}
+        {showAlert && (
+          <Alert variant="negative">
+            <AlertTriangle size={18} />
+            <AlertDescription>
+              Your balance has exceeded{" "}
+              <span className="font-mono font-semibold">
+                {formatCAD(settings!.loanAlertThreshold!)}
+              </span>{" "}
+              — consider declaring a dividend.
+            </AlertDescription>
+          </Alert>
         )}
-      </Card>
 
-      {/* Loan Alert Banner */}
-      {showAlert && (
-        <Alert variant="negative">
-          <AlertTriangle size={18} />
-          <AlertDescription>
-            Your balance has exceeded{" "}
-            <span className="font-mono font-semibold">
-              {formatCAD(settings!.loanAlertThreshold!)}
-            </span>{" "}
-            — consider declaring a dividend.
-          </AlertDescription>
-        </Alert>
-      )}
+        {/* Quick Stats Row */}
+        <div className="grid grid-cols-2 gap-3">
+          <Card className="p-4 space-y-1">
+            <p className="text-xs text-text-muted font-medium">Personal · This Month</p>
+            {summary === undefined ? (
+              <Skeleton className="h-6 w-28" />
+            ) : (
+              <p className="font-mono text-lg font-semibold text-text-primary text-right">
+                {formatCAD(summary?.totalPersonalExpenses ?? 0)}
+              </p>
+            )}
+          </Card>
+          <Card className="p-4 space-y-1">
+            <p className="text-xs text-text-muted font-medium">Business · This Month</p>
+            {summary === undefined ? (
+              <Skeleton className="h-6 w-28" />
+            ) : (
+              <p className="font-mono text-lg font-semibold text-text-primary text-right">
+                {formatCAD(summary?.totalBusinessExpenses ?? 0)}
+              </p>
+            )}
+          </Card>
+        </div>
 
-      {/* Quick Stats Row */}
-      <div className="grid grid-cols-2 gap-3">
-        <Card className="p-4 space-y-1">
-          <p className="text-xs text-text-muted font-medium">Personal · This Month</p>
-          {summary === undefined ? (
-            <Skeleton className="h-6 w-28" />
-          ) : (
-            <p className="font-mono text-lg font-semibold text-text-primary text-right">
-              {formatCAD(summary?.totalPersonalExpenses ?? 0)}
-            </p>
-          )}
-        </Card>
-        <Card className="p-4 space-y-1">
-          <p className="text-xs text-text-muted font-medium">Business · This Month</p>
-          {summary === undefined ? (
-            <Skeleton className="h-6 w-28" />
-          ) : (
-            <p className="font-mono text-lg font-semibold text-text-primary text-right">
-              {formatCAD(summary?.totalBusinessExpenses ?? 0)}
-            </p>
-          )}
-        </Card>
-      </div>
-
-      {/* Recent Transactions */}
-      <div className="space-y-2">
-        <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide px-1">
-          Recent Transactions
-        </h2>
-        <ListContainer>
-          {status === "LoadingFirstPage" ? (
-            Array.from({ length: 5 }).map((_, i) => (
-              <ListItem key={i}>
-                <Skeleton className="h-4 w-14" />
-                <Skeleton className="h-4 flex-1" />
-                <Skeleton className="h-5 w-20" />
-                <Skeleton className="h-4 w-16" />
-              </ListItem>
-            ))
-          ) : recentTxns.length === 0 ? (
-            <p className="px-4 py-6 text-center text-sm text-text-muted">
-              No transactions yet. Tap + to add one.
-            </p>
-          ) : (
-            recentTxns.slice(0, 5).map((tx) => {
-              const config = typeConfig[tx.type as TransactionType];
-              return (
-                <ListItem key={tx._id} asChild>
-                  <Link href={`/transactions/${tx._id}`}>
-                    <span className="shrink-0 text-xs text-text-muted font-mono w-14">
-                      {formatShortDate(tx.date)}
-                    </span>
-                    <span className="flex-1 truncate text-sm text-text-primary">
-                      {tx.description}
-                    </span>
-                    <Badge variant={config.variant}>{config.label}</Badge>
-                    <span className="shrink-0 font-mono text-sm text-text-primary text-right">
-                      {formatCAD(tx.amount)}
-                    </span>
-                  </Link>
+        {/* Recent Transactions */}
+        <div className="space-y-2">
+          <h2 className="px-1 text-sm font-semibold text-text-muted uppercase tracking-wide">
+            Recent Transactions
+          </h2>
+          <ListContainer>
+            {status === "LoadingFirstPage" ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <ListItem key={i}>
+                  <Skeleton className="h-4 w-14" />
+                  <Skeleton className="h-4 flex-1" />
+                  <Skeleton className="h-5 w-20" />
+                  <Skeleton className="h-4 w-16" />
                 </ListItem>
-              );
-            })
-          )}
-        </ListContainer>
+              ))
+            ) : recentTxns.length === 0 ? (
+              <p className="px-4 py-6 text-center text-sm text-text-muted">
+                No transactions yet. Tap + to add one.
+              </p>
+            ) : (
+              recentTxns.slice(0, 5).map((tx) => {
+                const config = typeConfig[tx.type as TransactionType];
+                return (
+                  <ListItem key={tx._id} asChild>
+                    <Link href={`/transactions/${tx._id}`}>
+                      <span className="w-14 shrink-0 font-mono text-xs text-text-muted">
+                        {formatShortDate(tx.date)}
+                      </span>
+                      <span className="flex-1 truncate text-sm text-text-primary">
+                        {tx.description}
+                      </span>
+                      <Badge variant={config.variant}>{config.label}</Badge>
+                      <span className="shrink-0 text-right font-mono text-sm text-text-primary">
+                        {formatCAD(tx.amount)}
+                      </span>
+                    </Link>
+                  </ListItem>
+                );
+              })
+            )}
+          </ListContainer>
+        </div>
       </div>
     </div>
   );
