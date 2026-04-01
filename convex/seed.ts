@@ -60,7 +60,7 @@ type SeedTransaction = {
   description: string;
   notes?: string;
   type: TransactionType;
-  categoryName: string;
+  categoryName?: string;
 };
 
 const SEED_TRANSACTIONS: SeedTransaction[] = [
@@ -150,33 +150,33 @@ const SEED_TRANSACTIONS: SeedTransaction[] = [
   { date: "2026-03-05", amount: 95.00, description: "Personal physiotherapy (corp card)", type: "personal_expense_business_pay", categoryName: "Health & Wellness" },
 
   // === transfer_to_personal (10) — corp repays Karina ===
-  { date: "2025-04-30", amount: 2500.00, description: "Corp → personal: reimbursement for Q4 expenses", type: "transfer_to_personal", categoryName: "Other Business", notes: "Shareholder loan repayment" },
-  { date: "2025-05-31", amount: 1800.00, description: "Corp → personal: salary transfer", type: "transfer_to_personal", categoryName: "Other Business" },
-  { date: "2025-06-30", amount: 3000.00, description: "Corp → personal: reimbursement for conference expenses", type: "transfer_to_personal", categoryName: "Other Business", notes: "Covers AANP travel and registration" },
-  { date: "2025-07-31", amount: 1800.00, description: "Corp → personal: salary transfer", type: "transfer_to_personal", categoryName: "Other Business" },
-  { date: "2025-08-31", amount: 1800.00, description: "Corp → personal: salary transfer", type: "transfer_to_personal", categoryName: "Other Business" },
-  { date: "2025-09-30", amount: 1800.00, description: "Corp → personal: salary transfer", type: "transfer_to_personal", categoryName: "Other Business" },
-  { date: "2025-10-31", amount: 2200.00, description: "Corp → personal: reimbursement batch", type: "transfer_to_personal", categoryName: "Other Business" },
-  { date: "2025-11-30", amount: 1800.00, description: "Corp → personal: salary transfer", type: "transfer_to_personal", categoryName: "Other Business" },
-  { date: "2026-01-31", amount: 1800.00, description: "Corp → personal: salary transfer", type: "transfer_to_personal", categoryName: "Other Business" },
-  { date: "2026-02-28", amount: 1800.00, description: "Corp → personal: salary transfer", type: "transfer_to_personal", categoryName: "Other Business" },
+  { date: "2025-04-30", amount: 2500.00, description: "Corp → personal: reimbursement for Q4 expenses", type: "transfer_to_personal", notes: "Shareholder loan repayment" },
+  { date: "2025-05-31", amount: 1800.00, description: "Corp → personal: salary transfer", type: "transfer_to_personal" },
+  { date: "2025-06-30", amount: 3000.00, description: "Corp → personal: reimbursement for conference expenses", type: "transfer_to_personal", notes: "Covers AANP travel and registration" },
+  { date: "2025-07-31", amount: 1800.00, description: "Corp → personal: salary transfer", type: "transfer_to_personal" },
+  { date: "2025-08-31", amount: 1800.00, description: "Corp → personal: salary transfer", type: "transfer_to_personal" },
+  { date: "2025-09-30", amount: 1800.00, description: "Corp → personal: salary transfer", type: "transfer_to_personal" },
+  { date: "2025-10-31", amount: 2200.00, description: "Corp → personal: reimbursement batch", type: "transfer_to_personal" },
+  { date: "2025-11-30", amount: 1800.00, description: "Corp → personal: salary transfer", type: "transfer_to_personal" },
+  { date: "2026-01-31", amount: 1800.00, description: "Corp → personal: salary transfer", type: "transfer_to_personal" },
+  { date: "2026-02-28", amount: 1800.00, description: "Corp → personal: salary transfer", type: "transfer_to_personal" },
 
   // === transfer_to_business (8) — Karina funds corp ===
-  { date: "2025-04-01", amount: 5000.00, description: "Personal → corp: initial operating funds", type: "transfer_to_business", categoryName: "Other Business", notes: "Startup capital injection" },
-  { date: "2025-05-15", amount: 1500.00, description: "Personal → corp: top-up for insurance payment", type: "transfer_to_business", categoryName: "Other Business" },
-  { date: "2025-07-10", amount: 2500.00, description: "Personal → corp: conference & travel advance", type: "transfer_to_business", categoryName: "Other Business" },
-  { date: "2025-09-20", amount: 1000.00, description: "Personal → corp: cover equipment purchase", type: "transfer_to_business", categoryName: "Other Business" },
-  { date: "2025-11-10", amount: 2000.00, description: "Personal → corp: Q4 operating funds", type: "transfer_to_business", categoryName: "Other Business" },
-  { date: "2026-01-05", amount: 3000.00, description: "Personal → corp: new fiscal year top-up", type: "transfer_to_business", categoryName: "Other Business" },
-  { date: "2026-02-20", amount: 1500.00, description: "Personal → corp: cover CPA invoice", type: "transfer_to_business", categoryName: "Other Business" },
-  { date: "2026-03-15", amount: 1000.00, description: "Personal → corp: year-end top-up", type: "transfer_to_business", categoryName: "Other Business" },
+  { date: "2025-04-01", amount: 5000.00, description: "Personal → corp: initial operating funds", type: "transfer_to_business", notes: "Startup capital injection" },
+  { date: "2025-05-15", amount: 1500.00, description: "Personal → corp: top-up for insurance payment", type: "transfer_to_business" },
+  { date: "2025-07-10", amount: 2500.00, description: "Personal → corp: conference & travel advance", type: "transfer_to_business" },
+  { date: "2025-09-20", amount: 1000.00, description: "Personal → corp: cover equipment purchase", type: "transfer_to_business" },
+  { date: "2025-11-10", amount: 2000.00, description: "Personal → corp: Q4 operating funds", type: "transfer_to_business" },
+  { date: "2026-01-05", amount: 3000.00, description: "Personal → corp: new fiscal year top-up", type: "transfer_to_business" },
+  { date: "2026-02-20", amount: 1500.00, description: "Personal → corp: cover CPA invoice", type: "transfer_to_business" },
+  { date: "2026-03-15", amount: 1000.00, description: "Personal → corp: year-end top-up", type: "transfer_to_business" },
 
   // === dividend_payment (5) ===
-  { date: "2025-06-30", amount: 4000.00, description: "Q1 dividend — corp to Karina", type: "dividend_payment", categoryName: "Other Business", notes: "Fiscal Q1 dividend distribution" },
-  { date: "2025-09-30", amount: 4000.00, description: "Q2 dividend — corp to Karina", type: "dividend_payment", categoryName: "Other Business", notes: "Fiscal Q2 dividend distribution" },
-  { date: "2025-12-31", amount: 5000.00, description: "Q3 dividend — corp to Karina", type: "dividend_payment", categoryName: "Other Business", notes: "Fiscal Q3 dividend distribution" },
-  { date: "2026-02-28", amount: 3000.00, description: "Special dividend — tax planning", type: "dividend_payment", categoryName: "Other Business", notes: "Year-end tax planning distribution" },
-  { date: "2026-03-31", amount: 4500.00, description: "Q4 dividend — corp to Karina", type: "dividend_payment", categoryName: "Other Business", notes: "Fiscal Q4 dividend distribution" },
+  { date: "2025-06-30", amount: 4000.00, description: "Q1 dividend — corp to Karina", type: "dividend_payment", notes: "Fiscal Q1 dividend distribution" },
+  { date: "2025-09-30", amount: 4000.00, description: "Q2 dividend — corp to Karina", type: "dividend_payment", notes: "Fiscal Q2 dividend distribution" },
+  { date: "2025-12-31", amount: 5000.00, description: "Q3 dividend — corp to Karina", type: "dividend_payment", notes: "Fiscal Q3 dividend distribution" },
+  { date: "2026-02-28", amount: 3000.00, description: "Special dividend — tax planning", type: "dividend_payment", notes: "Year-end tax planning distribution" },
+  { date: "2026-03-31", amount: 4500.00, description: "Q4 dividend — corp to Karina", type: "dividend_payment", notes: "Fiscal Q4 dividend distribution" },
 ];
 
 export const seedTransactions = internalMutation({
@@ -223,9 +223,12 @@ export const seedTransactions = internalMutation({
     // Insert all 100 transactions
     let inserted = 0;
     for (const tx of SEED_TRANSACTIONS) {
-      const categoryId = categoryIds.get(tx.categoryName);
-      if (!categoryId) {
-        throw new Error(`Category not found: "${tx.categoryName}"`);
+      let categoryId: Id<"categories"> | undefined;
+      if (tx.categoryName) {
+        categoryId = categoryIds.get(tx.categoryName);
+        if (!categoryId) {
+          throw new Error(`Category not found: "${tx.categoryName}"`);
+        }
       }
       const shareholderLoanDelta = computeDelta(tx.type, tx.amount);
       await ctx.db.insert("transactions", {
