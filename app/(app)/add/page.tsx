@@ -265,7 +265,7 @@ export default function AddTransactionPage() {
         receiptStorageId,
       });
       toast.success("Transaction saved");
-      router.push("/");
+      router.push("/transactions");
     } catch (err) {
       console.error(err);
       setSaving(false);
@@ -278,7 +278,7 @@ export default function AddTransactionPage() {
         title="Add Transaction"
         left={
           <Button variant="ghost" size="icon" asChild className="-ml-2">
-            <Link href="/">
+            <Link href="/transactions">
               <ChevronLeft size={20} className="text-text-muted" />
             </Link>
           </Button>
