@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/form";
 import { PageHeader } from "@/components/PageHeader";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ChevronDown } from "lucide-react";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -57,6 +57,7 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
@@ -249,6 +250,29 @@ export default function SettingsPage() {
           <ChevronRight size={18} className="text-text-muted" />
         </Link>
       </Button>
+
+      {/* Advanced */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowAdvanced((v) => !v)}
+          className="flex items-center gap-1 text-xs text-text-muted py-1"
+        >
+          <ChevronDown
+            size={12}
+            className={`transition-transform ${showAdvanced ? "" : "-rotate-90"}`}
+          />
+          Advanced
+        </button>
+        {showAdvanced && (
+          <div className="mt-2 rounded-2xl border border-border bg-surface px-4 py-3 space-y-2">
+            <p className="text-xs text-text-muted font-medium uppercase tracking-wide">User ID</p>
+            <p className="text-xs text-text-muted font-mono break-all select-all">
+              {settings?.userId ?? "—"}
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Sign Out */}
       <div className="pt-2 pb-2">
