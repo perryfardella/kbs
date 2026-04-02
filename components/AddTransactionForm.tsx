@@ -3,10 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useMutation, useQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useRouter } from "next/navigation";
 import { Id } from "@/convex/_generated/dataModel";
-import { Info, X, ChevronLeft, Loader2, Camera, Upload } from "lucide-react";
-import Link from "next/link";
+import { Info, X, Loader2, Camera, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -36,7 +34,6 @@ import {
   type TransactionFormValues,
 } from "@/app/(app)/transactions/transactionSchema";
 import { compressImage, fileToBase64 } from "@/lib/compressImage";
-import { PageHeader } from "@/components/PageHeader";
 
 type TransactionType =
   | "personal_expense"
@@ -92,9 +89,12 @@ function AutoFilledBadge({ field, autoFilled }: { field: string; autoFilled: Set
   );
 }
 
-export default function AddTransactionPage() {
-  const router = useRouter();
+interface AddTransactionFormProps {
+  isOpen: boolean;
+  onSuccess: () => void;
+}
 
+export function AddTransactionForm({ isOpen, onSuccess }: AddTransactionFormProps) {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -121,7 +121,27 @@ export default function AddTransactionPage() {
     },
   });
 
-  useEffect(() => { form.setFocus("amount"); }, [form]);
+  // Reset and focus when drawer opens
+  useEffect(() => {
+    if (!isOpen) return;
+    setSaving(false);
+    setScanning(false);
+    setAutoFilled(new Set());
+    setReceiptFile(null);
+    setReceiptPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    form.reset({
+      type: "personal_expense",
+      amount: "",
+      date: todayString(),
+      description: "",
+      categoryId: "",
+      notes: "",
+    });
+    const timer = setTimeout(() => form.setFocus("amount"), 300);
+    return () => clearTimeout(timer);
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const transactionType = form.watch("type");
   const selectedOption = TYPE_OPTIONS.find((t) => t.value === transactionType)!;
@@ -152,21 +172,17 @@ export default function AddTransactionPage() {
     const raw = e.target.files?.[0] ?? null;
     if (!raw) return;
 
-    // Compress before storing — this same File is uploaded on save
     let compressed: File;
     try {
       compressed = await compressImage(raw);
     } catch {
-      // Compression failed — store original, skip scan
       setReceiptFile(raw);
-      if (receiptPreview) URL.revokeObjectURL(receiptPreview);
-      setReceiptPreview(URL.createObjectURL(raw));
+      setReceiptPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(raw); });
       return;
     }
 
     setReceiptFile(compressed);
-    if (receiptPreview) URL.revokeObjectURL(receiptPreview);
-    setReceiptPreview(URL.createObjectURL(compressed));
+    setReceiptPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(compressed); });
 
     if (!categories) {
       console.warn("[receipt scan] categories not yet loaded — skipping scan");
@@ -180,31 +196,17 @@ export default function AddTransactionPage() {
       const result = await scanReceipt({
         imageBase64,
         imageType: "image/jpeg",
-        // Pass live category list — new categories added by the user are automatically included
         categories: categories.map((c) => ({ id: c._id, name: c.name, realm: c.realm })),
       });
       console.log("[receipt scan] result:", result);
 
       const filled = new Set<string>();
 
-      if (result.amount) {
-        form.setValue("amount", result.amount);
-        filled.add("amount");
-      }
-      if (result.date) {
-        form.setValue("date", result.date);
-        filled.add("date");
-      }
-      if (result.description) {
-        form.setValue("description", result.description);
-        filled.add("description");
-      }
-      if (result.notes) {
-        form.setValue("notes", result.notes);
-        filled.add("notes");
-      }
+      if (result.amount) { form.setValue("amount", result.amount); filled.add("amount"); }
+      if (result.date) { form.setValue("date", result.date); filled.add("date"); }
+      if (result.description) { form.setValue("description", result.description); filled.add("description"); }
+      if (result.notes) { form.setValue("notes", result.notes); filled.add("notes"); }
 
-      // Set type before validating categoryId — category realm must match the type
       const effectiveType = result.type ?? form.getValues("type");
       if (result.type) {
         form.setValue("type", result.type);
@@ -237,8 +239,7 @@ export default function AddTransactionPage() {
 
   function removeReceipt() {
     setReceiptFile(null);
-    if (receiptPreview) URL.revokeObjectURL(receiptPreview);
-    setReceiptPreview(null);
+    setReceiptPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
     setAutoFilled(new Set());
     if (cameraInputRef.current) cameraInputRef.current.value = "";
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -265,7 +266,7 @@ export default function AddTransactionPage() {
         receiptStorageId,
       });
       toast.success("Transaction saved");
-      router.push("/transactions");
+      onSuccess();
     } catch (err) {
       console.error(err);
       setSaving(false);
@@ -273,95 +274,84 @@ export default function AddTransactionPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg">
-      <PageHeader
-        title="Add Transaction"
-        left={
-          <Button variant="ghost" size="icon" asChild className="-ml-2">
-            <Link href="/transactions">
-              <ChevronLeft size={20} className="text-text-muted" />
-            </Link>
-          </Button>
-        }
-      />
-
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSave)}>
-          <div className="px-4 pt-5 space-y-5 pb-28">
-            {/* Type Selector */}
-            <FormField
-              control={form.control}
-              name="type"
-              render={({ field }) => (
-                <div className="space-y-2">
-                  <label className="block text-xs font-medium text-text-muted uppercase tracking-wide">
-                    Type
-                    <AutoFilledBadge field="type" autoFilled={autoFilled} />
-                  </label>
-                  <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1">
-                    {TYPE_OPTIONS.map((opt) => (
-                      <Toggle
-                        key={opt.value}
-                        pressed={field.value === opt.value}
-                        onPressedChange={() => {
-                          field.onChange(opt.value);
-                          form.setValue("categoryId", "");
-                          clearAutoFilled("type");
-                          clearAutoFilled("categoryId");
-                        }}
-                      >
-                        {opt.label}
-                      </Toggle>
-                    ))}
-                  </div>
-                  {selectedOption.tooltip && (
-                    <p className="flex items-start gap-1.5 text-xs text-text-muted leading-relaxed">
-                      <Info size={12} className="mt-0.5 shrink-0" />
-                      {selectedOption.tooltip}
-                    </p>
-                  )}
-                </div>
-              )}
-            />
-
-            {/* Amount */}
-            <FormField
-              control={form.control}
-              name="amount"
-              render={({ field, fieldState }) => (
-                <FormItem>
-                  <FormLabel variant="muted">
-                    Amount
-                    <AutoFilledBadge field="amount" autoFilled={autoFilled} />
-                  </FormLabel>
-                  <div className={`flex items-center gap-2 rounded-2xl border bg-surface px-4 py-3 ${fieldState.invalid ? "border-negative" : "border-border"}`}>
-                    <span className="font-mono text-sm font-medium text-text-muted">CAD</span>
-                    <input
-                      {...field}
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="0.00"
-                      className="flex-1 bg-transparent font-mono text-3xl font-semibold text-text-primary outline-none placeholder:text-[#2a2a2a]"
-                      onChange={(e) => {
-                        field.onChange(e);
-                        clearAutoFilled("amount");
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSave)}>
+        <div className="px-4 pt-2 space-y-3 pb-2">
+          {/* Type Selector */}
+          <FormField
+            control={form.control}
+            name="type"
+            render={({ field }) => (
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-text-muted uppercase tracking-wide">
+                  Type
+                  <AutoFilledBadge field="type" autoFilled={autoFilled} />
+                </label>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {TYPE_OPTIONS.map((opt) => (
+                    <Toggle
+                      key={opt.value}
+                      pressed={field.value === opt.value}
+                      onPressedChange={() => {
+                        field.onChange(opt.value);
+                        form.setValue("categoryId", "");
+                        clearAutoFilled("type");
+                        clearAutoFilled("categoryId");
                       }}
-                    />
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Loan Impact Banner */}
-            {loanImpact && (
-              <Alert variant={loanImpact.positive ? "positive" : "negative"}>
-                <Info size={16} />
-                <AlertDescription>{loanImpact.text}</AlertDescription>
-              </Alert>
+                    >
+                      {opt.label}
+                    </Toggle>
+                  ))}
+                </div>
+                {selectedOption.tooltip && (
+                  <p className="flex items-start gap-1.5 text-xs text-text-muted leading-relaxed">
+                    <Info size={12} className="mt-0.5 shrink-0" />
+                    {selectedOption.tooltip}
+                  </p>
+                )}
+              </div>
             )}
+          />
 
-            {/* Date */}
+          {/* Amount */}
+          <FormField
+            control={form.control}
+            name="amount"
+            render={({ field, fieldState }) => (
+              <FormItem>
+                <FormLabel variant="muted">
+                  Amount
+                  <AutoFilledBadge field="amount" autoFilled={autoFilled} />
+                </FormLabel>
+                <div className={`flex items-center gap-2 rounded-2xl border bg-surface px-4 py-2.5 ${fieldState.invalid ? "border-negative" : "border-border"}`}>
+                  <span className="font-mono text-sm font-medium text-text-muted">CAD</span>
+                  <input
+                    {...field}
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    className="flex-1 min-w-0 bg-transparent font-mono text-3xl font-semibold text-text-primary outline-none placeholder:text-[#2a2a2a]"
+                    onChange={(e) => {
+                      field.onChange(e);
+                      clearAutoFilled("amount");
+                    }}
+                  />
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Loan Impact Banner */}
+          {loanImpact && (
+            <Alert variant={loanImpact.positive ? "positive" : "negative"}>
+              <Info size={16} />
+              <AlertDescription>{loanImpact.text}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Date + Description */}
+          <div className="grid grid-cols-2 gap-3">
             <FormField
               control={form.control}
               name="date"
@@ -386,8 +376,6 @@ export default function AddTransactionPage() {
                 </FormItem>
               )}
             />
-
-            {/* Description */}
             <FormField
               control={form.control}
               name="description"
@@ -414,136 +402,134 @@ export default function AddTransactionPage() {
                 </FormItem>
               )}
             />
+          </div>
 
-            {/* Category */}
-            {showCategory && (
-              <FormField
-                control={form.control}
-                name="categoryId"
-                render={({ field, fieldState }) => (
-                  <FormItem>
-                    <FormLabel variant="muted">
-                      Category
-                      <AutoFilledBadge field="categoryId" autoFilled={autoFilled} />
-                    </FormLabel>
-                    {categories === undefined ? (
-                      <Skeleton className="h-12 w-full rounded-2xl" />
-                    ) : (
-                      <Select
-                        value={field.value ?? ""}
-                        onValueChange={(v) => {
-                          field.onChange(v);
-                          clearAutoFilled("categoryId");
-                        }}
-                      >
-                        <SelectTrigger
-                          className={`rounded-2xl border bg-surface min-h-[44px] px-4 text-text-primary ${fieldState.invalid ? "border-negative" : "border-border"}`}
-                        >
-                          <SelectValue placeholder="Select a category…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {filteredCategories.map((cat) => (
-                            <SelectItem key={cat._id} value={cat._id}>
-                              {cat.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-
-            {/* Notes */}
+          {/* Category */}
+          {showCategory && (
             <FormField
               control={form.control}
-              name="notes"
-              render={({ field }) => (
+              name="categoryId"
+              render={({ field, fieldState }) => (
                 <FormItem>
                   <FormLabel variant="muted">
-                    Notes (optional)
-                    <AutoFilledBadge field="notes" autoFilled={autoFilled} />
+                    Category
+                    <AutoFilledBadge field="categoryId" autoFilled={autoFilled} />
                   </FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Any additional details…"
-                      rows={3}
-                      {...field}
-                      onChange={(e) => {
-                        field.onChange(e);
-                        clearAutoFilled("notes");
+                  {categories === undefined ? (
+                    <Skeleton className="h-12 w-full rounded-2xl" />
+                  ) : (
+                    <Select
+                      value={field.value ?? ""}
+                      onValueChange={(v) => {
+                        field.onChange(v);
+                        clearAutoFilled("categoryId");
                       }}
-                    />
-                  </FormControl>
+                    >
+                      <SelectTrigger
+                        className={`rounded-2xl border bg-surface min-h-[44px] px-4 text-text-primary ${fieldState.invalid ? "border-negative" : "border-border"}`}
+                      >
+                        <SelectValue placeholder="Select a category…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredCategories.map((cat) => (
+                          <SelectItem key={cat._id} value={cat._id}>
+                            {cat.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  <FormMessage />
                 </FormItem>
               )}
             />
+          )}
 
-            {/* Receipt Photo */}
-            <div className="space-y-2">
-              <label className="block text-xs font-medium text-text-muted uppercase tracking-wide">
-                Receipt <span className="normal-case font-normal text-text-muted">(optional)</span>
-              </label>
-              {receiptPreview ? (
-                <div className="relative rounded-2xl overflow-hidden border border-border">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={receiptPreview}
-                    alt="Receipt preview"
-                    className={`w-full max-h-52 object-cover transition-opacity duration-200 ${scanning ? "opacity-40" : ""}`}
+          {/* Notes */}
+          <FormField
+            control={form.control}
+            name="notes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel variant="muted">
+                  Notes (optional)
+                  <AutoFilledBadge field="notes" autoFilled={autoFilled} />
+                </FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder="Any additional details…"
+                    rows={1}
+                    {...field}
+                    onChange={(e) => {
+                      field.onChange(e);
+                      clearAutoFilled("notes");
+                    }}
                   />
-                  {scanning ? (
-                    <div className="absolute inset-0 flex items-center justify-center gap-2">
-                      <Loader2 size={16} className="animate-spin text-text-primary" />
-                      <span className="text-sm font-medium text-text-primary">Scanning…</span>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={removeReceipt}
-                      className="absolute top-2 right-2 flex items-center justify-center w-8 h-8 rounded-full bg-bg/80 active:scale-95 transition-transform"
-                    >
-                      <X size={16} className="text-text-primary" />
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => cameraInputRef.current?.click()}
-                    className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border bg-surface px-4 py-6 active:bg-border/20 transition-colors min-h-[44px]"
-                  >
-                    <Camera size={18} className="text-text-muted" />
-                    <span className="text-sm text-text-muted">Take Photo</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border bg-surface px-4 py-6 active:bg-border/20 transition-colors min-h-[44px]"
-                  >
-                    <Upload size={18} className="text-text-muted" />
-                    <span className="text-sm text-text-muted">Upload File</span>
-                  </button>
-                  <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleReceiptChange} className="sr-only" />
-                  <input ref={fileInputRef} type="file" accept="image/*" onChange={handleReceiptChange} className="sr-only" />
-                </div>
-              )}
-            </div>
-          </div>
+                </FormControl>
+              </FormItem>
+            )}
+          />
 
-          {/* Sticky Save Button */}
-          <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+72px)] left-0 right-0 z-20 px-4 pt-3 pb-3 bg-bg/95 backdrop-blur-sm border-t border-border">
-            <div className="mx-auto max-w-lg">
-              <Button type="submit" disabled={saving || scanning}>
-                {saving ? "Saving…" : "Save Transaction"}
-              </Button>
-            </div>
+          {/* Receipt Photo */}
+          <div className="space-y-2">
+            <label className="block text-xs font-medium text-text-muted uppercase tracking-wide">
+              Receipt <span className="normal-case font-normal text-text-muted">(optional)</span>
+            </label>
+            {receiptPreview ? (
+              <div className="relative rounded-2xl overflow-hidden border border-border">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={receiptPreview}
+                  alt="Receipt preview"
+                  className={`w-full max-h-52 object-cover transition-opacity duration-200 ${scanning ? "opacity-40" : ""}`}
+                />
+                {scanning ? (
+                  <div className="absolute inset-0 flex items-center justify-center gap-2">
+                    <Loader2 size={16} className="animate-spin text-text-primary" />
+                    <span className="text-sm font-medium text-text-primary">Scanning…</span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={removeReceipt}
+                    className="absolute top-2 right-2 flex items-center justify-center w-8 h-8 rounded-full bg-bg/80 active:scale-95 transition-transform"
+                  >
+                    <X size={16} className="text-text-primary" />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="flex flex-row items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-surface px-4 py-2 active:bg-border/20 transition-colors min-h-[44px]"
+                >
+                  <Camera size={16} className="text-text-muted" />
+                  <span className="text-sm text-text-muted">Take Photo</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex flex-row items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-surface px-4 py-2 active:bg-border/20 transition-colors min-h-[44px]"
+                >
+                  <Upload size={16} className="text-text-muted" />
+                  <span className="text-sm text-text-muted">Upload File</span>
+                </button>
+                <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleReceiptChange} className="sr-only" />
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleReceiptChange} className="sr-only" />
+              </div>
+            )}
           </div>
-        </form>
-      </Form>
-    </div>
+        </div>
+
+        {/* Sticky Save Button — sticks to bottom of drawer scroll container */}
+        <div className="sticky bottom-0 left-0 right-0 z-20 px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] bg-bg/95 backdrop-blur-sm border-t border-border mt-3">
+          <Button type="submit" disabled={saving || scanning}>
+            {saving ? "Saving…" : "Save Transaction"}
+          </Button>
+        </div>
+      </form>
+    </Form>
   );
 }
