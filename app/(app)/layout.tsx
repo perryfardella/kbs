@@ -15,7 +15,7 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-bg">
+    <div className="flex min-h-screen flex-col bg-bg" data-vaul-drawer-wrapper>
       <OnboardingGuard>
         <main className="flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+72px)]">
           {children}

@@ -12,6 +12,8 @@ import Link from "next/link";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
+import { AddTransactionDrawer } from "@/components/AddTransactionDrawer";
+import { EditTransactionDrawer } from "@/components/EditTransactionDrawer";
 
 type TransactionType =
   | "personal_expense"
@@ -109,7 +111,7 @@ export default function TransactionsPage() {
   const isLoading = status === "LoadingFirstPage";
 
   return (
-    <div className="mx-auto max-w-lg">
+    <div className="mx-auto max-w-lg overflow-x-clip">
       <PageHeader title="Transactions" />
 
       <div className="px-4 pt-4 pb-6 space-y-4">
@@ -231,7 +233,7 @@ export default function TransactionsPage() {
                       const config = typeConfig[tx.type as TransactionType];
                       return (
                         <ListItem key={tx._id} asChild>
-                          <Link href={`/transactions/${tx._id}`}>
+                          <Link href={`/transactions?edit=${tx._id}`}>
                             <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${config.indicator}`} />
                             <span className="shrink-0 text-xs text-text-muted font-mono w-12">
                               {formatShortDate(tx.date)}
@@ -266,6 +268,8 @@ export default function TransactionsPage() {
           </>
         )}
       </div>
+      <AddTransactionDrawer />
+      <EditTransactionDrawer />
     </div>
   );
 }
