@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -78,19 +78,67 @@ interface EditTransactionFormProps {
   onSuccess: () => void;
 }
 
+type TransactionData = NonNullable<ReturnType<typeof useQuery<typeof api.transactions.get>>>;
+type CategoryData = NonNullable<ReturnType<typeof useQuery<typeof api.categories.list>>>;
+
+// Outer shell: waits for both transaction and categories before mounting the form
 export function EditTransactionForm({ transactionId, onSuccess }: EditTransactionFormProps) {
   const transaction = useQuery(api.transactions.get, { transactionId });
   const categories = useQuery(api.categories.list);
+
+  if (transaction === null) {
+    return (
+      <div className="px-4 py-10 text-center">
+        <p className="text-sm text-text-muted">Transaction not found.</p>
+      </div>
+    );
+  }
+
+  if (transaction === undefined || categories === undefined) {
+    return (
+      <div className="px-4 pt-2 space-y-3 pb-2">
+        <Skeleton className="h-11 w-full rounded-2xl" />
+        <Skeleton className="h-14 w-full rounded-2xl" />
+        <div className="grid grid-cols-2 gap-3">
+          <Skeleton className="h-11 w-full rounded-2xl" />
+          <Skeleton className="h-11 w-full rounded-2xl" />
+        </div>
+        <Skeleton className="h-11 w-full rounded-2xl" />
+        <Skeleton className="h-11 w-full rounded-2xl" />
+      </div>
+    );
+  }
+
+  return (
+    <EditTransactionFormInner
+      transactionId={transactionId}
+      transaction={transaction}
+      categories={categories}
+      onSuccess={onSuccess}
+    />
+  );
+}
+
+interface InnerProps {
+  transactionId: Id<"transactions">;
+  transaction: TransactionData;
+  categories: CategoryData;
+  onSuccess: () => void;
+}
+
+// Inner form: receives transaction + categories as props, uses them as static defaultValues
+function EditTransactionFormInner({ transactionId, transaction, categories, onSuccess }: InnerProps) {
   const updateTransaction = useMutation(api.transactions.update);
   const generateUploadUrl = useMutation(api.receipts.generateUploadUrl);
 
-  const [existingStorageId, setExistingStorageId] = useState<Id<"_storage"> | undefined>(undefined);
+  const [existingStorageId, setExistingStorageId] = useState<Id<"_storage"> | undefined>(
+    transaction.receiptStorageId as Id<"_storage"> | undefined
+  );
   const [newReceiptFile, setNewReceiptFile] = useState<File | null>(null);
   const [newReceiptPreview, setNewReceiptPreview] = useState<string | null>(null);
   const [receiptRemoved, setReceiptRemoved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showReceiptFullscreen, setShowReceiptFullscreen] = useState(false);
-  const [initialized, setInitialized] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -102,35 +150,20 @@ export function EditTransactionForm({ transactionId, onSuccess }: EditTransactio
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
-      type: "personal_expense",
-      amount: "",
-      date: "",
-      description: "",
-      categoryId: "",
-      notes: "",
+      type: transaction.type as TransactionType,
+      amount: String(transaction.amount),
+      date: transaction.date,
+      description: transaction.description,
+      categoryId: transaction.categoryId ?? "",
+      notes: transaction.notes ?? "",
     },
   });
-
-  useEffect(() => {
-    if (transaction && !initialized) {
-      form.reset({
-        type: transaction.type as TransactionType,
-        amount: String(transaction.amount),
-        date: transaction.date,
-        description: transaction.description,
-        categoryId: transaction.categoryId ?? "",
-        notes: transaction.notes ?? "",
-      });
-      setExistingStorageId(transaction.receiptStorageId as Id<"_storage"> | undefined);
-      setInitialized(true);
-    }
-  }, [transaction, initialized, form]);
 
   const transactionType = form.watch("type");
   const selectedOption = TYPE_OPTIONS.find((t) => t.value === transactionType)!;
   const showCategory = selectedOption.categoryRealm !== null;
 
-  const filteredCategories = (categories ?? []).filter((cat) => {
+  const filteredCategories = categories.filter((cat) => {
     if (!showCategory) return false;
     const realm = selectedOption.categoryRealm;
     if (realm === "personal") return cat.realm === "personal" || cat.realm === "both";
@@ -193,31 +226,6 @@ export function EditTransactionForm({ transactionId, onSuccess }: EditTransactio
       console.error(err);
       setSaving(false);
     }
-  }
-
-  if (transaction === null) {
-    return (
-      <div className="px-4 py-10 text-center">
-        <p className="text-sm text-text-muted">Transaction not found.</p>
-      </div>
-    );
-  }
-
-  const isLoading = transaction === undefined || categories === undefined;
-
-  if (isLoading) {
-    return (
-      <div className="px-4 pt-2 space-y-3 pb-2">
-        <Skeleton className="h-11 w-full rounded-2xl" />
-        <Skeleton className="h-14 w-full rounded-2xl" />
-        <div className="grid grid-cols-2 gap-3">
-          <Skeleton className="h-11 w-full rounded-2xl" />
-          <Skeleton className="h-11 w-full rounded-2xl" />
-        </div>
-        <Skeleton className="h-11 w-full rounded-2xl" />
-        <Skeleton className="h-11 w-full rounded-2xl" />
-      </div>
-    );
   }
 
   return (
@@ -352,9 +360,7 @@ export function EditTransactionForm({ transactionId, onSuccess }: EditTransactio
                   <FormItem>
                     <FormLabel variant="muted">Category</FormLabel>
                     <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                      <SelectTrigger
-                        className={`rounded-2xl border bg-surface min-h-[44px] px-4 text-text-primary ${fieldState.invalid ? "border-negative" : "border-border"}`}
-                      >
+                      <SelectTrigger className={fieldState.invalid ? "border-negative" : ""}>
                         <SelectValue placeholder="Select a category…" />
                       </SelectTrigger>
                       <SelectContent>

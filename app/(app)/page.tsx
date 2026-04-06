@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { usePaginatedQuery, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,7 +10,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ListContainer, ListItem } from "@/components/ui/list-container";
 import { PageHeader } from "@/components/PageHeader";
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+import { computeOccurrences } from "@/lib/recurrence";
+import { format } from "date-fns";
 
 function formatCAD(amount: number): string {
   return new Intl.NumberFormat("en-CA", {
@@ -67,6 +70,34 @@ export default function DashboardPage() {
     {},
     { initialNumItems: 5 }
   );
+
+  const recurringRules = useQuery(api.recurringTransactions.list);
+  const appliedOccurrences = useQuery(api.recurringTransactions.listAllAppliedOccurrences);
+
+  const today = format(new Date(), "yyyy-MM-dd");
+
+  const upcomingOccurrences = useMemo(() => {
+    if (!recurringRules || !appliedOccurrences) return undefined;
+    if (recurringRules.length === 0) return [];
+
+    const appliedMap = new Map(
+      appliedOccurrences.map((o) => [`${o.recurringTransactionId}:${o.scheduledDate}`, true])
+    );
+
+    const all: { date: string; description: string; amount: number; ruleId: string }[] = [];
+
+    for (const rule of recurringRules) {
+      const occs = computeOccurrences(rule, today, 5);
+      for (const occ of occs) {
+        const key = `${rule._id}:${occ.date}`;
+        if (!appliedMap.has(key)) {
+          all.push({ date: occ.date, description: rule.description, amount: rule.amount, ruleId: rule._id });
+        }
+      }
+    }
+
+    return all.sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3);
+  }, [recurringRules, appliedOccurrences, today]);
 
   const isPositive = (balance ?? 0) >= 0;
   const showAlert =
@@ -175,6 +206,40 @@ export default function DashboardPage() {
             )}
           </ListContainer>
         </div>
+        {/* Upcoming Recurring */}
+        {upcomingOccurrences !== undefined && upcomingOccurrences.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide flex items-center gap-1.5">
+                <RefreshCw size={12} className="text-text-muted" />
+                Upcoming
+              </h2>
+              <Link
+                href="/transactions?tab=upcoming"
+                className="text-xs text-text-muted underline-offset-2 hover:underline"
+              >
+                View all
+              </Link>
+            </div>
+            <ListContainer>
+              {upcomingOccurrences.map((occ) => (
+                <ListItem key={`${occ.ruleId}-${occ.date}`} asChild>
+                  <Link href={`/transactions?tab=upcoming&applyOccurrence=${occ.ruleId}&date=${occ.date}`}>
+                    <span className="w-14 shrink-0 font-mono text-xs text-text-muted">
+                      {formatShortDate(occ.date)}
+                    </span>
+                    <span className="flex-1 truncate text-sm text-text-primary">
+                      {occ.description}
+                    </span>
+                    <span className="shrink-0 text-right font-mono text-sm text-text-primary">
+                      {formatCAD(occ.amount)}
+                    </span>
+                  </Link>
+                </ListItem>
+              ))}
+            </ListContainer>
+          </div>
+        )}
       </div>
     </div>
   );

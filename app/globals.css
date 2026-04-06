@@ -28,7 +28,7 @@
   --muted-foreground: var(--text-muted);
   --destructive: var(--negative);
   --destructive-foreground: #ffffff;
-  --input: var(--surface);
+  --input: var(--border);
   --ring: var(--accent);
   --radius: 1rem;
 }
