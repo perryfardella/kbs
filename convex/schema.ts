@@ -1,6 +1,16 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
+const transactionTypeValidator = v.union(
+  v.literal("personal_expense"),
+  v.literal("business_expense"),
+  v.literal("business_expense_personal_pay"),
+  v.literal("personal_expense_business_pay"),
+  v.literal("transfer_to_personal"),
+  v.literal("transfer_to_business"),
+  v.literal("dividend_payment")
+);
+
 export default defineSchema({
   settings: defineTable({
     userId: v.string(), // tokenIdentifier from Clerk
@@ -30,15 +40,7 @@ export default defineSchema({
     amount: v.number(),
     description: v.string(),
     notes: v.optional(v.string()),
-    type: v.union(
-      v.literal("personal_expense"),
-      v.literal("business_expense"),
-      v.literal("business_expense_personal_pay"),
-      v.literal("personal_expense_business_pay"),
-      v.literal("transfer_to_personal"),
-      v.literal("transfer_to_business"),
-      v.literal("dividend_payment")
-    ),
+    type: transactionTypeValidator,
     categoryId: v.optional(v.id("categories")),
     receiptStorageId: v.optional(v.id("_storage")),
     shareholderLoanDelta: v.number(),
@@ -51,4 +53,39 @@ export default defineSchema({
       searchField: "description",
       filterFields: ["userId"],
     }),
+
+  recurringTransactions: defineTable({
+    userId: v.string(), // tokenIdentifier from Clerk
+    description: v.string(),
+    amount: v.number(),
+    type: transactionTypeValidator,
+    categoryId: v.optional(v.id("categories")),
+    notes: v.optional(v.string()),
+    frequency: v.union(
+      v.literal("weekly"),
+      v.literal("biweekly"),
+      v.literal("monthly"),
+      v.literal("yearly")
+    ),
+    // weekly/biweekly: 0–6 (day of week, 0=Sun); monthly: 1–31 (day of month)
+    anchorDay: v.optional(v.number()),
+    // yearly only: "MM-DD"
+    anchorDate: v.optional(v.string()),
+    startDate: v.string(), // "YYYY-MM-DD" — first eligible occurrence
+    endDate: v.optional(v.string()), // "YYYY-MM-DD" — stop after this date
+    isActive: v.boolean(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_active", ["userId", "isActive"]),
+
+  recurringOccurrences: defineTable({
+    userId: v.string(), // tokenIdentifier from Clerk
+    recurringTransactionId: v.id("recurringTransactions"),
+    scheduledDate: v.string(), // "YYYY-MM-DD" — which occurrence this covers
+    appliedTransactionId: v.id("transactions"),
+    appliedAt: v.number(), // Date.now()
+  })
+    .index("by_user", ["userId"])
+    .index("by_recurring", ["recurringTransactionId"])
+    .index("by_recurring_date", ["recurringTransactionId", "scheduledDate"]),
 });

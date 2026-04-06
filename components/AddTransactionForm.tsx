@@ -425,9 +425,7 @@ export function AddTransactionForm({ isOpen, onSuccess }: AddTransactionFormProp
                         clearAutoFilled("categoryId");
                       }}
                     >
-                      <SelectTrigger
-                        className={`rounded-2xl border bg-surface min-h-[44px] px-4 text-text-primary ${fieldState.invalid ? "border-negative" : "border-border"}`}
-                      >
+                      <SelectTrigger className={fieldState.invalid ? "border-negative" : ""}>
                         <SelectValue placeholder="Select a category…" />
                       </SelectTrigger>
                       <SelectContent>
