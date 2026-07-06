@@ -228,7 +228,7 @@ export function AddRecurringForm({ isOpen, onSuccess }: AddRecurringFormProps) {
                     type="text"
                     inputMode="decimal"
                     placeholder="0.00"
-                    className="flex-1 min-w-0 bg-transparent font-mono text-3xl font-semibold text-text-primary outline-none placeholder:text-[#2a2a2a]"
+                    className="flex-1 min-w-0 bg-transparent font-mono text-3xl font-semibold text-text-primary outline-none placeholder:text-text-muted"
                   />
                 </div>
                 <FormMessage />

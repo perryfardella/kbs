@@ -330,7 +330,7 @@ export function AddTransactionForm({ isOpen, onSuccess }: AddTransactionFormProp
                     type="text"
                     inputMode="decimal"
                     placeholder="0.00"
-                    className="flex-1 min-w-0 bg-transparent font-mono text-3xl font-semibold text-text-primary outline-none placeholder:text-[#2a2a2a]"
+                    className="flex-1 min-w-0 bg-transparent font-mono text-3xl font-semibold text-text-primary outline-none placeholder:text-text-muted"
                     onChange={(e) => {
                       field.onChange(e);
                       clearAutoFilled("amount");
