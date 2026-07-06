@@ -188,7 +188,7 @@ export default function DashboardPage() {
                 const config = typeConfig[tx.type as TransactionType];
                 return (
                   <ListItem key={tx._id} asChild>
-                    <Link href={`/transactions/${tx._id}`}>
+                    <Link href={`/transactions?edit=${tx._id}`}>
                       <span className="w-14 shrink-0 font-mono text-xs text-text-muted">
                         {formatShortDate(tx.date)}
                       </span>
