@@ -12,6 +12,7 @@ const badgeVariants = cva(
         personal: "bg-[#60a5fa]/20 text-[#60a5fa]",
         business: "bg-[#a78bfa]/20 text-[#a78bfa]",
         transfer: "bg-[#fb923c]/20 text-[#fb923c]",
+        rental:   "bg-[#34d399]/20 text-[#34d399]",
         accent:   "bg-accent/10 text-accent",
       },
     },

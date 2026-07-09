@@ -40,9 +40,11 @@ type TransactionType =
   | "personal_expense_business_pay"
   | "transfer_to_personal"
   | "transfer_to_business"
-  | "dividend_payment";
+  | "dividend_payment"
+  | "rental_income"
+  | "rental_expense";
 
-type CategoryRealm = "personal" | "business" | null;
+type CategoryRealm = "personal" | "business" | "rental" | null;
 
 const TYPE_OPTIONS: {
   value: TransactionType;
@@ -54,10 +56,18 @@ const TYPE_OPTIONS: {
   { value: "business_expense",              label: "Business Expense",                categoryRealm: "business" },
   { value: "business_expense_personal_pay", label: "Biz Expense (Personal Pay)",      tooltip: "I pay a business expense from my own pocket", categoryRealm: "business" },
   { value: "personal_expense_business_pay", label: "Personal Expense (Business Pay)", tooltip: "I pay a personal expense from the business account", categoryRealm: "personal" },
+  { value: "rental_income",                 label: "Rental Income",                   tooltip: "Recurring rent or income from an investment property", categoryRealm: null },
+  { value: "rental_expense",                label: "Rental Expense",                  tooltip: "A recurring expense for an investment property", categoryRealm: "rental" },
   { value: "transfer_to_personal",          label: "Corp → Me",                       categoryRealm: null },
   { value: "transfer_to_business",          label: "Me → Corp",                       categoryRealm: null },
   { value: "dividend_payment",              label: "Dividend / Repayment",            categoryRealm: null },
 ];
+
+// Only rental transactions are tagged to a property, and they require one.
+const PROPERTY_TYPES = new Set<TransactionType>([
+  "rental_income",
+  "rental_expense",
+]);
 
 const FREQUENCY_OPTIONS = [
   { value: "weekly",   label: "Weekly" },
@@ -131,6 +141,7 @@ interface InnerProps {
 function EditRecurringFormInner({ recurringTransactionId, rule, categories, onSuccess }: InnerProps) {
   const [saving, setSaving] = useState(false);
   const updateRecurring = useMutation(api.recurringTransactions.update);
+  const properties = useQuery(api.properties.list);
 
   const form = useForm<RecurringTransactionFormValues>({
     resolver: zodResolver(recurringTransactionSchema),
@@ -139,6 +150,7 @@ function EditRecurringFormInner({ recurringTransactionId, rule, categories, onSu
       amount: String(rule.amount),
       description: rule.description,
       categoryId: rule.categoryId ?? "",
+      propertyId: rule.propertyId ?? "",
       notes: rule.notes ?? "",
       frequency: rule.frequency,
       anchorDay: rule.anchorDay,
@@ -155,12 +167,16 @@ function EditRecurringFormInner({ recurringTransactionId, rule, categories, onSu
 
   const selectedOption = TYPE_OPTIONS.find((t) => t.value === transactionType)!;
   const showCategory = selectedOption.categoryRealm !== null;
+  const showProperty = PROPERTY_TYPES.has(transactionType);
+  const propertyRequired =
+    transactionType === "rental_income" || transactionType === "rental_expense";
 
   const filteredCategories = categories.filter((cat) => {
     if (!showCategory) return false;
     const realm = selectedOption.categoryRealm;
     if (realm === "personal") return cat.realm === "personal" || cat.realm === "both";
     if (realm === "business") return cat.realm === "business" || cat.realm === "both";
+    if (realm === "rental") return cat.realm === "rental";
     return false;
   });
 
@@ -176,6 +192,7 @@ function EditRecurringFormInner({ recurringTransactionId, rule, categories, onSu
         amount: parseFloat(data.amount),
         type: data.type,
         categoryId: data.categoryId ? (data.categoryId as Id<"categories">) : undefined,
+        propertyId: data.propertyId ? (data.propertyId as Id<"properties">) : undefined,
         notes: data.notes?.trim() || undefined,
         frequency: data.frequency,
         anchorDay: data.anchorDay,
@@ -212,6 +229,9 @@ function EditRecurringFormInner({ recurringTransactionId, rule, categories, onSu
                       onPressedChange={() => {
                         field.onChange(opt.value);
                         form.setValue("categoryId", "");
+                        if (!PROPERTY_TYPES.has(opt.value)) {
+                          form.setValue("propertyId", "");
+                        }
                       }}
                     >
                       {opt.label}
@@ -289,6 +309,42 @@ function EditRecurringFormInner({ recurringTransactionId, rule, categories, onSu
                       ))}
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+
+          {/* Property */}
+          {showProperty && (
+            <FormField
+              control={form.control}
+              name="propertyId"
+              render={({ field, fieldState }) => (
+                <FormItem>
+                  <FormLabel variant="muted">
+                    Property{propertyRequired ? "" : " (optional)"}
+                  </FormLabel>
+                  {properties === undefined ? (
+                    <Skeleton className="h-12 w-full rounded-2xl" />
+                  ) : properties.length === 0 ? (
+                    <p className="text-xs text-text-muted">
+                      No properties yet. Add one from the Properties screen.
+                    </p>
+                  ) : (
+                    <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                      <SelectTrigger className={fieldState.invalid ? "border-negative" : ""}>
+                        <SelectValue placeholder="Select a property…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {properties.map((p) => (
+                          <SelectItem key={p._id} value={p._id}>
+                            {p.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}

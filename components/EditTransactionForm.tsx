@@ -41,9 +41,11 @@ type TransactionType =
   | "personal_expense_business_pay"
   | "transfer_to_personal"
   | "transfer_to_business"
-  | "dividend_payment";
+  | "dividend_payment"
+  | "rental_income"
+  | "rental_expense";
 
-type CategoryRealm = "personal" | "business" | null;
+type CategoryRealm = "personal" | "business" | "rental" | null;
 
 const TYPE_OPTIONS: {
   value: TransactionType;
@@ -55,10 +57,18 @@ const TYPE_OPTIONS: {
   { value: "business_expense",             label: "Business Expense",               categoryRealm: "business" },
   { value: "business_expense_personal_pay",label: "Biz Expense (Personal Pay)",     tooltip: "I paid a business expense from my own pocket",                                                                 categoryRealm: "business" },
   { value: "personal_expense_business_pay",label: "Personal Expense (Business Pay)",tooltip: "I paid a personal expense from my business account",                                                          categoryRealm: "personal" },
+  { value: "rental_income",                label: "Rental Income",                  tooltip: "Rent or other income received from an investment property",                                                    categoryRealm: null },
+  { value: "rental_expense",               label: "Rental Expense",                 tooltip: "An expense for an investment property (mortgage interest, repairs, etc.)",                                     categoryRealm: "rental" },
   { value: "transfer_to_personal",         label: "Corp → Me",                      tooltip: "Informal transfer — corp sent money to my personal account (e.g. to cover a personal expense or float)",      categoryRealm: null },
   { value: "transfer_to_business",         label: "Me → Corp",                      tooltip: "I put personal money into the business",                                                                       categoryRealm: null },
   { value: "dividend_payment",             label: "Dividend / Repayment",           tooltip: "Formal corporate action — corp declared and paid a dividend, or formally repaid the shareholder loan",        categoryRealm: null },
 ];
+
+// Only rental transactions are tagged to a property, and they require one.
+const PROPERTY_TYPES = new Set<TransactionType>([
+  "rental_income",
+  "rental_expense",
+]);
 
 function getLoanImpact(type: TransactionType, amount: number): { text: string; positive: boolean } | null {
   const fmt = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD", minimumFractionDigits: 2 }).format(amount);
@@ -130,6 +140,7 @@ interface InnerProps {
 function EditTransactionFormInner({ transactionId, transaction, categories, onSuccess }: InnerProps) {
   const updateTransaction = useMutation(api.transactions.update);
   const generateUploadUrl = useMutation(api.receipts.generateUploadUrl);
+  const properties = useQuery(api.properties.list);
 
   const [existingStorageId, setExistingStorageId] = useState<Id<"_storage"> | undefined>(
     transaction.receiptStorageId as Id<"_storage"> | undefined
@@ -155,6 +166,7 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
       date: transaction.date,
       description: transaction.description,
       categoryId: transaction.categoryId ?? "",
+      propertyId: transaction.propertyId ?? "",
       notes: transaction.notes ?? "",
     },
   });
@@ -162,12 +174,16 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
   const transactionType = form.watch("type");
   const selectedOption = TYPE_OPTIONS.find((t) => t.value === transactionType)!;
   const showCategory = selectedOption.categoryRealm !== null;
+  const showProperty = PROPERTY_TYPES.has(transactionType);
+  const propertyRequired =
+    transactionType === "rental_income" || transactionType === "rental_expense";
 
   const filteredCategories = categories.filter((cat) => {
     if (!showCategory) return false;
     const realm = selectedOption.categoryRealm;
     if (realm === "personal") return cat.realm === "personal" || cat.realm === "both";
     if (realm === "business") return cat.realm === "business" || cat.realm === "both";
+    if (realm === "rental") return cat.realm === "rental";
     return false;
   });
 
@@ -218,6 +234,7 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
         notes: data.notes?.trim() || undefined,
         type: data.type,
         categoryId: data.categoryId ? (data.categoryId as Id<"categories">) : undefined,
+        propertyId: data.propertyId ? (data.propertyId as Id<"properties">) : undefined,
         receiptStorageId,
       });
       toast.success("Changes saved");
@@ -269,6 +286,9 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
                         onPressedChange={() => {
                           field.onChange(opt.value);
                           form.setValue("categoryId", "");
+                          if (!PROPERTY_TYPES.has(opt.value)) {
+                            form.setValue("propertyId", "");
+                          }
                         }}
                       >
                         {opt.label}
@@ -371,6 +391,42 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
                         ))}
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Property */}
+            {showProperty && (
+              <FormField
+                control={form.control}
+                name="propertyId"
+                render={({ field, fieldState }) => (
+                  <FormItem>
+                    <FormLabel variant="muted">
+                      Property{propertyRequired ? "" : " (optional)"}
+                    </FormLabel>
+                    {properties === undefined ? (
+                      <Skeleton className="h-12 w-full rounded-2xl" />
+                    ) : properties.length === 0 ? (
+                      <p className="text-xs text-text-muted">
+                        No properties yet. Add one from the Properties screen.
+                      </p>
+                    ) : (
+                      <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                        <SelectTrigger className={fieldState.invalid ? "border-negative" : ""}>
+                          <SelectValue placeholder="Select a property…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {properties.map((p) => (
+                            <SelectItem key={p._id} value={p._id}>
+                              {p.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}

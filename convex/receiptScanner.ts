@@ -22,7 +22,12 @@ type ScanResult = {
 const categoryValidator = v.object({
   id: v.string(),
   name: v.string(),
-  realm: v.union(v.literal("personal"), v.literal("business"), v.literal("both")),
+  realm: v.union(
+    v.literal("personal"),
+    v.literal("business"),
+    v.literal("both"),
+    v.literal("rental")
+  ),
 });
 
 const scanArgs = {

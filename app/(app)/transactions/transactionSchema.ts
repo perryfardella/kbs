@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-type CategoryRealm = "personal" | "business" | null;
+type CategoryRealm = "personal" | "business" | "rental" | null;
 
 const EXPENSE_TYPE_REALMS: Record<string, CategoryRealm> = {
   personal_expense: "personal",
@@ -10,7 +10,11 @@ const EXPENSE_TYPE_REALMS: Record<string, CategoryRealm> = {
   transfer_to_personal: null,
   transfer_to_business: null,
   dividend_payment: null,
+  rental_income: null,
+  rental_expense: "rental",
 };
+
+const RENTAL_TYPES = ["rental_income", "rental_expense"];
 
 export const transactionSchema = z
   .object({
@@ -22,6 +26,8 @@ export const transactionSchema = z
       "transfer_to_personal",
       "transfer_to_business",
       "dividend_payment",
+      "rental_income",
+      "rental_expense",
     ]),
     amount: z
       .string()
@@ -30,6 +36,7 @@ export const transactionSchema = z
     date: z.string().min(1, "Date is required"),
     description: z.string().min(1, "Description is required"),
     categoryId: z.string().optional(),
+    propertyId: z.string().optional(),
     notes: z.string().optional(),
   })
   .superRefine((data, ctx) => {
@@ -39,6 +46,13 @@ export const transactionSchema = z
         code: z.ZodIssueCode.custom,
         message: "Select a category",
         path: ["categoryId"],
+      });
+    }
+    if (RENTAL_TYPES.includes(data.type) && !data.propertyId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Select a property",
+        path: ["propertyId"],
       });
     }
   });

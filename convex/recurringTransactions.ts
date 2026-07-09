@@ -10,7 +10,9 @@ const transactionTypeValidator = v.union(
   v.literal("personal_expense_business_pay"),
   v.literal("transfer_to_personal"),
   v.literal("transfer_to_business"),
-  v.literal("dividend_payment")
+  v.literal("dividend_payment"),
+  v.literal("rental_income"),
+  v.literal("rental_expense")
 );
 
 type TransactionType =
@@ -20,7 +22,9 @@ type TransactionType =
   | "personal_expense_business_pay"
   | "transfer_to_personal"
   | "transfer_to_business"
-  | "dividend_payment";
+  | "dividend_payment"
+  | "rental_income"
+  | "rental_expense";
 
 function computeDelta(type: TransactionType, amount: number): number {
   switch (type) {
@@ -41,6 +45,7 @@ const recurringArgs = {
   amount: v.number(),
   type: transactionTypeValidator,
   categoryId: v.optional(v.id("categories")),
+  propertyId: v.optional(v.id("properties")),
   notes: v.optional(v.string()),
   frequency: v.union(
     v.literal("weekly"),
@@ -147,6 +152,7 @@ export const applyOccurrence = mutation({
       notes: args.notes ?? rule.notes,
       type: rule.type,
       categoryId: rule.categoryId,
+      propertyId: rule.propertyId,
       shareholderLoanDelta,
     });
 
@@ -253,6 +259,7 @@ export const autoApplyDue = internalMutation({
           notes: rule.notes,
           type: rule.type,
           categoryId: rule.categoryId,
+          propertyId: rule.propertyId,
           shareholderLoanDelta,
         });
 

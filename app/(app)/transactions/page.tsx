@@ -11,7 +11,7 @@ import { Toggle } from "@/components/ui/toggle";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ListContainer, ListItem } from "@/components/ui/list-container";
 import Link from "next/link";
-import { Search, X } from "lucide-react";
+import { Search, X, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
 import { AddTransactionDrawer } from "@/components/AddTransactionDrawer";
@@ -28,10 +28,12 @@ type TransactionType =
   | "personal_expense_business_pay"
   | "transfer_to_personal"
   | "transfer_to_business"
-  | "dividend_payment";
+  | "dividend_payment"
+  | "rental_income"
+  | "rental_expense";
 
-type FilterChip = "all" | "personal" | "business" | "transfers";
-type BadgeVariant = "personal" | "business" | "transfer";
+type FilterChip = "all" | "personal" | "business" | "transfers" | "property";
+type BadgeVariant = "personal" | "business" | "transfer" | "rental";
 
 const typeConfig: Record<TransactionType, { label: string; variant: BadgeVariant; indicator: string }> = {
   personal_expense:             { label: "Personal",          variant: "personal", indicator: "bg-badge-personal" },
@@ -41,11 +43,14 @@ const typeConfig: Record<TransactionType, { label: string; variant: BadgeVariant
   transfer_to_personal:         { label: "Corp → Me",         variant: "transfer", indicator: "bg-badge-transfer" },
   transfer_to_business:         { label: "Me → Corp",         variant: "transfer", indicator: "bg-badge-transfer" },
   dividend_payment:             { label: "Dividend",          variant: "transfer", indicator: "bg-badge-transfer" },
+  rental_income:                { label: "Rental Income",     variant: "rental",   indicator: "bg-badge-rental" },
+  rental_expense:               { label: "Rental Expense",    variant: "rental",   indicator: "bg-badge-rental" },
 };
 
 const PERSONAL_TYPES: TransactionType[] = ["personal_expense", "personal_expense_business_pay"];
 const BUSINESS_TYPES: TransactionType[] = ["business_expense", "business_expense_personal_pay"];
 const TRANSFER_TYPES: TransactionType[] = ["transfer_to_personal", "transfer_to_business", "dividend_payment"];
+const RENTAL_TYPES: TransactionType[] = ["rental_income", "rental_expense"];
 
 function formatCAD(amount: number): string {
   return new Intl.NumberFormat("en-CA", {
@@ -94,6 +99,7 @@ function HistoryTab() {
     if (chip === "all") return results;
     if (chip === "personal") return results.filter((tx) => PERSONAL_TYPES.includes(tx.type as TransactionType));
     if (chip === "business") return results.filter((tx) => BUSINESS_TYPES.includes(tx.type as TransactionType));
+    if (chip === "property") return results.filter((tx) => RENTAL_TYPES.includes(tx.type as TransactionType));
     return results.filter((tx) => TRANSFER_TYPES.includes(tx.type as TransactionType));
   }, [results, chip]);
 
@@ -112,13 +118,14 @@ function HistoryTab() {
     { value: "personal", label: "Personal" },
     { value: "business", label: "Business" },
     { value: "transfers", label: "Transfers" },
+    { value: "property", label: "Property" },
   ];
 
   const isLoading = status === "LoadingFirstPage";
 
   return (
     <div className="px-4 pt-4 pb-6 space-y-4">
-      {/* Search */}
+      {/* Search + date filter toggle */}
       <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface px-3 min-h-[44px]">
         <Search size={16} className="text-text-muted shrink-0" />
         <input
@@ -129,6 +136,19 @@ function HistoryTab() {
           onChange={(e) => setSearch(e.target.value)}
           className="flex-1 bg-transparent py-2.5 text-sm text-text-primary outline-none placeholder:text-text-muted"
         />
+        <button
+          type="button"
+          onClick={() => setShowDateFilters((v) => !v)}
+          aria-label="Filter by date range"
+          aria-pressed={showDateFilters}
+          className={`shrink-0 flex h-8 w-8 items-center justify-center rounded-xl transition-colors active:scale-95 ${
+            showDateFilters || startDate || endDate
+              ? "text-accent"
+              : "text-text-muted hover:text-text-primary"
+          }`}
+        >
+          <Calendar size={16} />
+        </button>
       </div>
 
       {/* Filter chips */}
@@ -142,12 +162,6 @@ function HistoryTab() {
             {c.label}
           </Toggle>
         ))}
-        <Toggle
-          pressed={showDateFilters || !!(startDate || endDate)}
-          onPressedChange={() => setShowDateFilters((v) => !v)}
-        >
-          Date Range
-        </Toggle>
       </div>
 
       {/* Date range inputs */}

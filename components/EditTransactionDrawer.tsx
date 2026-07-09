@@ -28,13 +28,14 @@ function EditTransactionDrawerInner() {
   const router = useRouter();
   const editId = searchParams.get("edit");
   const isOpen = !!editId;
+  const returnTo = searchParams.get("returnTo") ?? "/transactions";
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const removeTransaction = useMutation(api.transactions.remove);
 
   function handleClose() {
-    router.replace("/transactions");
+    router.replace(returnTo);
   }
 
   async function handleDelete() {

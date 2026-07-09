@@ -18,7 +18,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { PageHeader } from "@/components/PageHeader";
 
-type Tab = "personal" | "business";
+type Tab = "personal" | "business" | "rental";
 
 const categorySchema = z.object({
   name: z.string().min(1, "Category name is required"),
@@ -30,6 +30,7 @@ export default function CategoriesPage() {
   const [activeTab, setActiveTab] = useState<Tab>("personal");
   const [addingPersonal, setAddingPersonal] = useState(false);
   const [addingBusiness, setAddingBusiness] = useState(false);
+  const [addingRental, setAddingRental] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<Id<"categories"> | null>(null);
   const [confirmArchiveId, setConfirmArchiveId] = useState<Id<"categories"> | null>(null);
   const [deletingId, setDeletingId] = useState<Id<"categories"> | null>(null);
@@ -48,10 +49,17 @@ export default function CategoriesPage() {
     categories?.filter((c) => c.realm === "personal" || c.realm === "both") ?? [];
   const businessCategories =
     categories?.filter((c) => c.realm === "business" || c.realm === "both") ?? [];
+  const rentalCategories =
+    categories?.filter((c) => c.realm === "rental") ?? [];
 
   async function handleAdd(tab: Tab) {
     const { name } = form.getValues();
-    const setAdding = tab === "personal" ? setAddingPersonal : setAddingBusiness;
+    const setAdding =
+      tab === "personal"
+        ? setAddingPersonal
+        : tab === "business"
+        ? setAddingBusiness
+        : setAddingRental;
     setAdding(true);
     try {
       await createCategory({ name: name.trim(), realm: tab });
@@ -77,7 +85,12 @@ export default function CategoriesPage() {
   }
 
   const isLoading = categories === undefined;
-  const isAdding = activeTab === "personal" ? addingPersonal : addingBusiness;
+  const isAdding =
+    activeTab === "personal"
+      ? addingPersonal
+      : activeTab === "business"
+      ? addingBusiness
+      : addingRental;
 
   function CategoryList({ cats }: { cats: typeof personalCategories }) {
     return (
@@ -217,12 +230,16 @@ export default function CategoriesPage() {
           <TabsList className="w-full">
             <TabsTrigger value="personal">Personal</TabsTrigger>
             <TabsTrigger value="business">Business</TabsTrigger>
+            <TabsTrigger value="rental">Rental</TabsTrigger>
           </TabsList>
           <TabsContent value="personal" className="flex flex-col gap-4">
             <CategoryList cats={personalCategories} />
           </TabsContent>
           <TabsContent value="business" className="flex flex-col gap-4">
             <CategoryList cats={businessCategories} />
+          </TabsContent>
+          <TabsContent value="rental" className="flex flex-col gap-4">
+            <CategoryList cats={rentalCategories} />
           </TabsContent>
         </Tabs>
       </div>

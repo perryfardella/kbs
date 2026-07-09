@@ -11,13 +11,27 @@ import {
 } from "@/components/ui/drawer";
 import { AddTransactionForm } from "@/components/AddTransactionForm";
 
+type TransactionTypeParam =
+  | "personal_expense"
+  | "business_expense"
+  | "business_expense_personal_pay"
+  | "personal_expense_business_pay"
+  | "transfer_to_personal"
+  | "transfer_to_business"
+  | "dividend_payment"
+  | "rental_income"
+  | "rental_expense";
+
 function AddTransactionDrawerInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const isOpen = searchParams.get("add") === "true";
+  const returnTo = searchParams.get("returnTo") ?? "/transactions";
+  const defaultPropertyId = searchParams.get("property") ?? undefined;
+  const defaultType = (searchParams.get("type") as TransactionTypeParam | null) ?? undefined;
 
   function handleClose() {
-    router.replace("/transactions");
+    router.replace(returnTo);
   }
 
   return (
@@ -32,7 +46,12 @@ function AddTransactionDrawerInner() {
           </Button>
         </div>
         <div className="overflow-y-auto flex-1">
-          <AddTransactionForm isOpen={isOpen} onSuccess={handleClose} />
+          <AddTransactionForm
+            isOpen={isOpen}
+            onSuccess={handleClose}
+            defaultPropertyId={defaultPropertyId}
+            defaultType={defaultType}
+          />
         </div>
       </DrawerContent>
     </Drawer>

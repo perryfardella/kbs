@@ -8,10 +8,21 @@ const transactionTypeValidator = v.union(
   v.literal("personal_expense_business_pay"),
   v.literal("transfer_to_personal"),
   v.literal("transfer_to_business"),
-  v.literal("dividend_payment")
+  v.literal("dividend_payment"),
+  v.literal("rental_income"),
+  v.literal("rental_expense")
 );
 
 export default defineSchema({
+  properties: defineTable({
+    userId: v.string(), // tokenIdentifier from Clerk
+    name: v.string(), // nickname, e.g. "123 Main St, Unit 2"
+    address: v.optional(v.string()),
+    isActive: v.boolean(), // active vs sold/archived
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_active", ["userId", "isActive"]),
+
   settings: defineTable({
     userId: v.string(), // tokenIdentifier from Clerk
     companyName: v.string(),
@@ -26,7 +37,8 @@ export default defineSchema({
     realm: v.union(
       v.literal("personal"),
       v.literal("business"),
-      v.literal("both")
+      v.literal("both"),
+      v.literal("rental")
     ),
     isDefault: v.boolean(),
     isArchived: v.boolean(),
@@ -42,6 +54,7 @@ export default defineSchema({
     notes: v.optional(v.string()),
     type: transactionTypeValidator,
     categoryId: v.optional(v.id("categories")),
+    propertyId: v.optional(v.id("properties")),
     receiptStorageId: v.optional(v.id("_storage")),
     shareholderLoanDelta: v.number(),
   })
@@ -49,6 +62,7 @@ export default defineSchema({
     .index("by_user_date", ["userId", "date"])
     .index("by_user_type", ["userId", "type"])
     .index("by_user_type_date", ["userId", "type", "date"])
+    .index("by_user_property_date", ["userId", "propertyId", "date"])
     .searchIndex("search_description", {
       searchField: "description",
       filterFields: ["userId"],
@@ -60,6 +74,7 @@ export default defineSchema({
     amount: v.number(),
     type: transactionTypeValidator,
     categoryId: v.optional(v.id("categories")),
+    propertyId: v.optional(v.id("properties")),
     notes: v.optional(v.string()),
     frequency: v.union(
       v.literal("weekly"),

@@ -9,7 +9,9 @@ const transactionTypeValidator = v.union(
   v.literal("personal_expense_business_pay"),
   v.literal("transfer_to_personal"),
   v.literal("transfer_to_business"),
-  v.literal("dividend_payment")
+  v.literal("dividend_payment"),
+  v.literal("rental_income"),
+  v.literal("rental_expense")
 );
 
 type TransactionType =
@@ -19,7 +21,9 @@ type TransactionType =
   | "personal_expense_business_pay"
   | "transfer_to_personal"
   | "transfer_to_business"
-  | "dividend_payment";
+  | "dividend_payment"
+  | "rental_income"
+  | "rental_expense";
 
 function computeDelta(type: TransactionType, amount: number): number {
   switch (type) {
@@ -43,6 +47,7 @@ export const create = mutation({
     notes: v.optional(v.string()),
     type: transactionTypeValidator,
     categoryId: v.optional(v.id("categories")),
+    propertyId: v.optional(v.id("properties")),
     receiptStorageId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
@@ -57,6 +62,7 @@ export const create = mutation({
       notes: args.notes,
       type: args.type,
       categoryId: args.categoryId,
+      propertyId: args.propertyId,
       receiptStorageId: args.receiptStorageId,
       shareholderLoanDelta,
     });
@@ -72,6 +78,7 @@ export const update = mutation({
     notes: v.optional(v.string()),
     type: transactionTypeValidator,
     categoryId: v.optional(v.id("categories")),
+    propertyId: v.optional(v.id("properties")),
     receiptStorageId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
@@ -88,6 +95,7 @@ export const update = mutation({
       notes: args.notes,
       type: args.type,
       categoryId: args.categoryId,
+      propertyId: args.propertyId,
       receiptStorageId: args.receiptStorageId,
       shareholderLoanDelta,
     });
@@ -128,6 +136,7 @@ export const list = query({
     startDate: v.optional(v.string()),
     endDate: v.optional(v.string()),
     type: v.optional(transactionTypeValidator),
+    propertyId: v.optional(v.id("properties")),
     search: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -140,6 +149,26 @@ export const list = query({
         .withSearchIndex("search_description", (q) =>
           q.search("description", args.search!).eq("userId", identity.tokenIdentifier)
         )
+        .paginate(args.paginationOpts);
+    }
+
+    if (args.propertyId) {
+      return await ctx.db
+        .query("transactions")
+        .withIndex("by_user_property_date", (q) => {
+          const base = q
+            .eq("userId", identity.tokenIdentifier)
+            .eq("propertyId", args.propertyId!);
+          if (args.startDate && args.endDate) {
+            return base.gte("date", args.startDate).lte("date", args.endDate);
+          } else if (args.startDate) {
+            return base.gte("date", args.startDate);
+          } else if (args.endDate) {
+            return base.lte("date", args.endDate);
+          }
+          return base;
+        })
+        .order("desc")
         .paginate(args.paginationOpts);
     }
 

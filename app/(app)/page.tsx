@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ListContainer, ListItem } from "@/components/ui/list-container";
 import { PageHeader } from "@/components/PageHeader";
 import Link from "next/link";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { AlertTriangle, RefreshCw, Building2, ChevronRight } from "lucide-react";
 import { computeOccurrences } from "@/lib/recurrence";
 import { format } from "date-fns";
 
@@ -37,9 +37,11 @@ type TransactionType =
   | "personal_expense_business_pay"
   | "transfer_to_personal"
   | "transfer_to_business"
-  | "dividend_payment";
+  | "dividend_payment"
+  | "rental_income"
+  | "rental_expense";
 
-type BadgeVariant = "personal" | "business" | "transfer";
+type BadgeVariant = "personal" | "business" | "transfer" | "rental";
 
 const typeConfig: Record<TransactionType, { label: string; variant: BadgeVariant }> = {
   personal_expense:              { label: "Personal",           variant: "personal" },
@@ -49,6 +51,8 @@ const typeConfig: Record<TransactionType, { label: string; variant: BadgeVariant
   transfer_to_personal:          { label: "Corp → Me",          variant: "transfer" },
   transfer_to_business:          { label: "Me → Corp",          variant: "transfer" },
   dividend_payment:              { label: "Dividend",            variant: "transfer" },
+  rental_income:                 { label: "Rental Income",      variant: "rental"   },
+  rental_expense:                { label: "Rental Expense",     variant: "rental"   },
 };
 
 const now = new Date();
@@ -70,6 +74,12 @@ export default function DashboardPage() {
     {},
     { initialNumItems: 5 }
   );
+
+  const properties = useQuery(api.properties.list);
+  const rentalSummary = useQuery(api.properties.getRentalSummary, {
+    startDate: startOfMonth,
+    endDate: endOfMonth,
+  });
 
   const recurringRules = useQuery(api.recurringTransactions.list);
   const appliedOccurrences = useQuery(api.recurringTransactions.listAllAppliedOccurrences);
@@ -163,6 +173,32 @@ export default function DashboardPage() {
             )}
           </Card>
         </div>
+
+        {/* Properties */}
+        {properties !== undefined && properties.length > 0 && (
+          <Link href="/properties" className="block">
+            <Card className="p-4 flex items-center gap-3 active:bg-border/20 transition-colors">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/15">
+                <Building2 size={20} className="text-accent" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-text-primary">Properties</p>
+                <p className="text-xs text-text-muted">
+                  {properties.length} {properties.length === 1 ? "property" : "properties"} · net this month
+                </p>
+              </div>
+              {rentalSummary === undefined ? (
+                <Skeleton className="h-5 w-20" />
+              ) : (
+                <span className={`shrink-0 font-mono text-sm ${(rentalSummary?.net ?? 0) >= 0 ? "text-positive" : "text-negative"}`}>
+                  {(rentalSummary?.net ?? 0) >= 0 ? "+" : "-"}
+                  {formatCAD(rentalSummary?.net ?? 0)}
+                </span>
+              )}
+              <ChevronRight size={16} className="shrink-0 text-text-muted" />
+            </Card>
+          </Link>
+        )}
 
         {/* Recent Transactions */}
         <div className="space-y-2">

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-type CategoryRealm = "personal" | "business" | null;
+type CategoryRealm = "personal" | "business" | "rental" | null;
 
 const EXPENSE_TYPE_REALMS: Record<string, CategoryRealm> = {
   personal_expense: "personal",
@@ -10,7 +10,11 @@ const EXPENSE_TYPE_REALMS: Record<string, CategoryRealm> = {
   transfer_to_personal: null,
   transfer_to_business: null,
   dividend_payment: null,
+  rental_income: null,
+  rental_expense: "rental",
 };
+
+const RENTAL_TYPES = ["rental_income", "rental_expense"];
 
 export const recurringTransactionSchema = z
   .object({
@@ -22,6 +26,8 @@ export const recurringTransactionSchema = z
       "transfer_to_personal",
       "transfer_to_business",
       "dividend_payment",
+      "rental_income",
+      "rental_expense",
     ]),
     amount: z
       .string()
@@ -29,6 +35,7 @@ export const recurringTransactionSchema = z
       .refine((v) => parseFloat(v) > 0, { message: "Enter a valid amount" }),
     description: z.string().min(1, "Description is required"),
     categoryId: z.string().optional(),
+    propertyId: z.string().optional(),
     notes: z.string().optional(),
     frequency: z.enum(["weekly", "biweekly", "monthly", "yearly"]),
     // weekly/biweekly: 0–6 (day of week); monthly: 1–31
@@ -45,6 +52,13 @@ export const recurringTransactionSchema = z
         code: z.ZodIssueCode.custom,
         message: "Select a category",
         path: ["categoryId"],
+      });
+    }
+    if (RENTAL_TYPES.includes(data.type) && !data.propertyId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Select a property",
+        path: ["propertyId"],
       });
     }
     if ((data.frequency === "weekly") && data.anchorDay === undefined) {
