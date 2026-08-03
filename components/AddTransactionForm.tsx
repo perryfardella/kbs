@@ -380,8 +380,36 @@ export function AddTransactionForm({
             </Alert>
           )}
 
-          {/* Date + Description */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Description */}
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field, fieldState }) => (
+              <FormItem>
+                <FormLabel variant="muted">
+                  Description
+                  <AutoFilledBadge field="description" autoFilled={autoFilled} />
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    type="text"
+                    inputMode="text"
+                    placeholder="What was this for?"
+                    className={fieldState.invalid ? "border-negative" : ""}
+                    {...field}
+                    onChange={(e) => {
+                      field.onChange(e);
+                      clearAutoFilled("description");
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Date + Category */}
+          <div className={showCategory ? "grid grid-cols-2 gap-3" : ""}>
             <FormField
               control={form.control}
               name="date"
@@ -406,72 +434,44 @@ export function AddTransactionForm({
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field, fieldState }) => (
-                <FormItem>
-                  <FormLabel variant="muted">
-                    Description
-                    <AutoFilledBadge field="description" autoFilled={autoFilled} />
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type="text"
-                      inputMode="text"
-                      placeholder="What was this for?"
-                      className={fieldState.invalid ? "border-negative" : ""}
-                      {...field}
-                      onChange={(e) => {
-                        field.onChange(e);
-                        clearAutoFilled("description");
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {showCategory && (
+              <FormField
+                control={form.control}
+                name="categoryId"
+                render={({ field, fieldState }) => (
+                  <FormItem>
+                    <FormLabel variant="muted">
+                      Category
+                      <AutoFilledBadge field="categoryId" autoFilled={autoFilled} />
+                    </FormLabel>
+                    {categories === undefined ? (
+                      <Skeleton className="h-12 w-full rounded-2xl" />
+                    ) : (
+                      <Select
+                        value={field.value ?? ""}
+                        onValueChange={(v) => {
+                          field.onChange(v);
+                          clearAutoFilled("categoryId");
+                        }}
+                      >
+                        <SelectTrigger className={fieldState.invalid ? "border-negative" : ""}>
+                          <SelectValue placeholder="Select a category…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {filteredCategories.map((cat) => (
+                            <SelectItem key={cat._id} value={cat._id}>
+                              {cat.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
           </div>
-
-          {/* Category */}
-          {showCategory && (
-            <FormField
-              control={form.control}
-              name="categoryId"
-              render={({ field, fieldState }) => (
-                <FormItem>
-                  <FormLabel variant="muted">
-                    Category
-                    <AutoFilledBadge field="categoryId" autoFilled={autoFilled} />
-                  </FormLabel>
-                  {categories === undefined ? (
-                    <Skeleton className="h-12 w-full rounded-2xl" />
-                  ) : (
-                    <Select
-                      value={field.value ?? ""}
-                      onValueChange={(v) => {
-                        field.onChange(v);
-                        clearAutoFilled("categoryId");
-                      }}
-                    >
-                      <SelectTrigger className={fieldState.invalid ? "border-negative" : ""}>
-                        <SelectValue placeholder="Select a category…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filteredCategories.map((cat) => (
-                          <SelectItem key={cat._id} value={cat._id}>
-                            {cat.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
 
           {/* Property */}
           {showProperty && (
