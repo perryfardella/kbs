@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { Info, X, ZoomIn } from "lucide-react";
+import { Info, X, Camera, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -69,6 +69,8 @@ const PROPERTY_TYPES = new Set<TransactionType>([
   "rental_income",
   "rental_expense",
 ]);
+
+const MAX_RECEIPT_PHOTOS = 5;
 
 function getLoanImpact(type: TransactionType, amount: number): { text: string; positive: boolean } | null {
   const fmt = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD", minimumFractionDigits: 2 }).format(amount);
@@ -142,20 +144,21 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
   const generateUploadUrl = useMutation(api.receipts.generateUploadUrl);
   const properties = useQuery(api.properties.list);
 
-  const [existingStorageId, setExistingStorageId] = useState<Id<"_storage"> | undefined>(
-    transaction.receiptStorageId as Id<"_storage"> | undefined
+  const [existingStorageIds] = useState<Id<"_storage">[]>(
+    (transaction.receiptStorageIds as Id<"_storage">[] | undefined) ?? []
   );
-  const [newReceiptFile, setNewReceiptFile] = useState<File | null>(null);
-  const [newReceiptPreview, setNewReceiptPreview] = useState<string | null>(null);
-  const [receiptRemoved, setReceiptRemoved] = useState(false);
+  const [removedExistingIds, setRemovedExistingIds] = useState<Set<Id<"_storage">>>(new Set());
+  const [newReceiptFiles, setNewReceiptFiles] = useState<File[]>([]);
+  const [newReceiptPreviews, setNewReceiptPreviews] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-  const [showReceiptFullscreen, setShowReceiptFullscreen] = useState(false);
+  const [fullscreenSrc, setFullscreenSrc] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  const existingReceiptUrl = useQuery(
-    api.receipts.getReceiptUrl,
-    existingStorageId ? { storageId: existingStorageId } : "skip"
+  const existingReceiptUrls = useQuery(
+    api.receipts.getReceiptUrls,
+    existingStorageIds.length > 0 ? { storageIds: existingStorageIds } : "skip"
   );
 
   const form = useForm<TransactionFormValues>({
@@ -191,41 +194,53 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
   const amountNum = parseFloat(amountStr) || 0;
   const loanImpact = amountNum > 0 ? getLoanImpact(transactionType, amountNum) : null;
 
-  const displayReceiptSrc = newReceiptPreview
-    ? newReceiptPreview
-    : !receiptRemoved && existingReceiptUrl
-    ? existingReceiptUrl
-    : null;
+  const remainingExistingIds = existingStorageIds.filter((id) => !removedExistingIds.has(id));
+  const existingUrlByStorageId = new Map(
+    (existingReceiptUrls ?? []).map((r) => [r.storageId, r.url])
+  );
+  const existingGallery = remainingExistingIds
+    .map((id) => ({ kind: "existing" as const, id, src: existingUrlByStorageId.get(id) ?? null }))
+    .filter((item): item is { kind: "existing"; id: Id<"_storage">; src: string } => !!item.src);
+  const newGallery = newReceiptPreviews.map((src, i) => ({ kind: "new" as const, index: i, src }));
+  const gallery = [...existingGallery, ...newGallery];
+  const totalReceiptCount = remainingExistingIds.length + newReceiptFiles.length;
 
   function handleReceiptChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] ?? null;
-    setNewReceiptFile(file);
-    if (newReceiptPreview) URL.revokeObjectURL(newReceiptPreview);
-    if (file) { setNewReceiptPreview(URL.createObjectURL(file)); setReceiptRemoved(false); }
-    else setNewReceiptPreview(null);
+    const raw = Array.from(e.target.files ?? []);
+    if (raw.length === 0) return;
+    const room = MAX_RECEIPT_PHOTOS - totalReceiptCount;
+    const accepted = raw.slice(0, Math.max(0, room));
+    if (accepted.length === 0) return;
+    setNewReceiptFiles((prev) => [...prev, ...accepted]);
+    setNewReceiptPreviews((prev) => [...prev, ...accepted.map((f) => URL.createObjectURL(f))]);
   }
 
-  function handleRemoveReceipt() {
-    setNewReceiptFile(null);
-    if (newReceiptPreview) URL.revokeObjectURL(newReceiptPreview);
-    setNewReceiptPreview(null);
-    setReceiptRemoved(true);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  function removeExistingReceipt(id: Id<"_storage">) {
+    setRemovedExistingIds((prev) => new Set(prev).add(id));
+  }
+
+  function removeNewReceipt(index: number) {
+    setNewReceiptFiles((prev) => prev.filter((_, i) => i !== index));
+    setNewReceiptPreviews((prev) => {
+      const removed = prev[index];
+      if (removed) URL.revokeObjectURL(removed);
+      return prev.filter((_, i) => i !== index);
+    });
   }
 
   async function handleSave(data: TransactionFormValues) {
     setSaving(true);
     try {
-      let receiptStorageId: Id<"_storage"> | undefined;
-      if (newReceiptFile) {
-        const uploadUrl = await generateUploadUrl();
-        const res = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": newReceiptFile.type }, body: newReceiptFile });
-        if (!res.ok) throw new Error("Receipt upload failed");
-        const { storageId } = await res.json();
-        receiptStorageId = storageId as Id<"_storage">;
-      } else if (!receiptRemoved) {
-        receiptStorageId = existingStorageId;
-      }
+      const uploadedIds: Id<"_storage">[] = await Promise.all(
+        newReceiptFiles.map(async (file) => {
+          const uploadUrl = await generateUploadUrl();
+          const res = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": file.type }, body: file });
+          if (!res.ok) throw new Error("Receipt upload failed");
+          const { storageId } = await res.json();
+          return storageId as Id<"_storage">;
+        })
+      );
+      const receiptStorageIds = [...remainingExistingIds, ...uploadedIds];
       await updateTransaction({
         transactionId,
         date: data.date,
@@ -235,7 +250,7 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
         type: data.type,
         categoryId: data.categoryId ? (data.categoryId as Id<"categories">) : undefined,
         propertyId: data.propertyId ? (data.propertyId as Id<"properties">) : undefined,
-        receiptStorageId,
+        receiptStorageIds: receiptStorageIds.length > 0 ? receiptStorageIds : undefined,
       });
       toast.success("Changes saved");
       onSuccess();
@@ -250,23 +265,32 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSave)}>
           <div className="px-4 pt-2 space-y-3 pb-2">
-            {/* Existing Receipt */}
-            {displayReceiptSrc && (
-              <div className="relative rounded-2xl overflow-hidden border border-border">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={displayReceiptSrc}
-                  alt="Receipt"
-                  className="w-full max-h-40 object-cover cursor-pointer"
-                  onClick={() => setShowReceiptFullscreen(true)}
-                />
-                <div className="absolute top-2 right-2 flex gap-2">
-                  <button type="button" onClick={() => setShowReceiptFullscreen(true)} className="flex items-center justify-center w-8 h-8 rounded-full bg-bg/80 active:scale-95 transition-transform" aria-label="View full size">
-                    <ZoomIn size={14} className="text-text-primary" />
-                  </button>
-                  <button type="button" onClick={handleRemoveReceipt} className="flex items-center justify-center w-8 h-8 rounded-full bg-bg/80 active:scale-95 transition-transform" aria-label="Remove receipt">
-                    <X size={14} className="text-text-primary" />
-                  </button>
+            {/* Existing Receipts */}
+            {gallery.length > 0 && (
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-text-muted uppercase tracking-wide">Receipts</label>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {gallery.map((item) => (
+                    <div key={item.kind === "existing" ? item.id : `new-${item.index}`} className="relative shrink-0 w-20 h-20 rounded-xl overflow-hidden border border-border">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={item.src}
+                        alt="Receipt"
+                        className="w-full h-full object-cover cursor-pointer"
+                        onClick={() => setFullscreenSrc(item.src)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          item.kind === "existing" ? removeExistingReceipt(item.id) : removeNewReceipt(item.index)
+                        }
+                        className="absolute top-1 right-1 flex items-center justify-center w-6 h-6 rounded-full bg-bg/80 active:scale-95 transition-transform"
+                        aria-label="Remove receipt"
+                      >
+                        <X size={12} className="text-text-primary" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -447,16 +471,38 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
               )}
             />
 
-            {/* Receipt — add/replace */}
-            {!displayReceiptSrc && (
+            {/* Receipt — add another */}
+            {totalReceiptCount < MAX_RECEIPT_PHOTOS && (
               <div className="space-y-2">
-                <label className="block text-xs font-medium text-text-muted uppercase tracking-wide">
-                  Receipt <span className="normal-case font-normal text-text-muted">(optional)</span>
-                </label>
-                <label className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-surface px-4 py-2 cursor-pointer active:bg-border/20 transition-colors min-h-[44px]">
-                  <span className="text-sm text-text-muted">Tap to add photo</span>
-                  <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleReceiptChange} className="sr-only" />
-                </label>
+                {gallery.length === 0 && (
+                  <label className="block text-xs font-medium text-text-muted uppercase tracking-wide">
+                    Receipts <span className="normal-case font-normal text-text-muted">(optional)</span>
+                  </label>
+                )}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="flex flex-row items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-surface px-4 py-2 active:bg-border/20 transition-colors min-h-[44px]"
+                  >
+                    <Camera size={16} className="text-text-muted" />
+                    <span className="text-sm text-text-muted">
+                      {gallery.length > 0 ? "Take Another Photo" : "Take Photo"}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex flex-row items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-surface px-4 py-2 active:bg-border/20 transition-colors min-h-[44px]"
+                  >
+                    <Upload size={16} className="text-text-muted" />
+                    <span className="text-sm text-text-muted">
+                      {gallery.length > 0 ? "Add More Photos" : "Upload Photo(s)"}
+                    </span>
+                  </button>
+                  <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleReceiptChange} className="sr-only" />
+                  <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleReceiptChange} className="sr-only" />
+                </div>
               </div>
             )}
           </div>
@@ -471,14 +517,14 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
       </Form>
 
       {/* Fullscreen Receipt Viewer */}
-      {showReceiptFullscreen && displayReceiptSrc && (
+      {fullscreenSrc && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-bg/95 backdrop-blur-sm"
-          onClick={() => setShowReceiptFullscreen(false)}
+          onClick={() => setFullscreenSrc(null)}
         >
           <button
             type="button"
-            onClick={() => setShowReceiptFullscreen(false)}
+            onClick={() => setFullscreenSrc(null)}
             className="absolute top-4 right-4 flex items-center justify-center w-10 h-10 rounded-full bg-surface/80 active:scale-95 transition-transform z-10"
             aria-label="Close"
           >
@@ -486,7 +532,7 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
           </button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={displayReceiptSrc}
+            src={fullscreenSrc}
             alt="Receipt full size"
             className="max-w-full max-h-full object-contain"
             onClick={(e) => e.stopPropagation()}

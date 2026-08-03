@@ -31,8 +31,12 @@ const categoryValidator = v.object({
 });
 
 const scanArgs = {
-  imageBase64: v.string(),
-  imageType: v.string(),
+  images: v.array(
+    v.object({
+      imageBase64: v.string(),
+      imageType: v.string(),
+    })
+  ),
   categories: v.array(categoryValidator),
 };
 
@@ -57,9 +61,17 @@ export const scanReceipt = internalAction({
       ...businessCats.map((c) => `  - id: "${c.id}", name: "${c.name}"`),
     ].join("\n");
 
+    const multiImage = args.images.length > 1;
     const prompt = `You are a receipt scanner for a personal finance app used by a Canadian physician. The app tracks expenses between personal accounts and a medical corporation to manage a shareholder loan balance.
 
-Analyze this receipt image and extract transaction data.
+${
+  multiImage
+    ? `Analyze the ${args.images.length} attached images, which are all photos of the SAME purchase (for example, an itemized receipt plus a separate card/EFTPOS payment slip). Combine information across all of them into a single, reconciled result rather than reporting one image's contents only. In particular:
+- If one image shows an itemized subtotal and another shows the actual amount charged/paid (e.g. a payment slip with a tip added), use the actual amount paid as "amount", not the itemized subtotal.
+- Merge details from all images when building "description" and "notes" (e.g. line items from an itemized receipt plus confirmation that a tip was added on the payment slip).
+- If images conflict and you can't tell which is authoritative, prefer the one that looks like the final payment confirmation (card/EFTPOS slip) for the amount, and the itemized receipt for line-item detail.`
+    : `Analyze this receipt image and extract transaction data.`
+}
 
 DATE FORMAT — This app is used in Canada. Dates are never in American MM/DD/YYYY format. Always return dates as DD/MM/YYYY. For example, if a receipt shows "03/04/2025" that is the 3rd of April and you must return "03/04/2025".
 
@@ -98,14 +110,14 @@ Respond with valid JSON only. No explanation, no markdown, no code fences.`;
           {
             role: "user",
             content: [
-              {
-                type: "image",
+              ...args.images.map((img) => ({
+                type: "image" as const,
                 source: {
-                  type: "base64",
-                  media_type: args.imageType,
-                  data: args.imageBase64,
+                  type: "base64" as const,
+                  media_type: img.imageType,
+                  data: img.imageBase64,
                 },
-              },
+              })),
               {
                 type: "text",
                 text: prompt,

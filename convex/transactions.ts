@@ -48,7 +48,7 @@ export const create = mutation({
     type: transactionTypeValidator,
     categoryId: v.optional(v.id("categories")),
     propertyId: v.optional(v.id("properties")),
-    receiptStorageId: v.optional(v.id("_storage")),
+    receiptStorageIds: v.optional(v.array(v.id("_storage"))),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -63,7 +63,7 @@ export const create = mutation({
       type: args.type,
       categoryId: args.categoryId,
       propertyId: args.propertyId,
-      receiptStorageId: args.receiptStorageId,
+      receiptStorageIds: args.receiptStorageIds,
       shareholderLoanDelta,
     });
   },
@@ -79,7 +79,7 @@ export const update = mutation({
     type: transactionTypeValidator,
     categoryId: v.optional(v.id("categories")),
     propertyId: v.optional(v.id("properties")),
-    receiptStorageId: v.optional(v.id("_storage")),
+    receiptStorageIds: v.optional(v.array(v.id("_storage"))),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -96,7 +96,7 @@ export const update = mutation({
       type: args.type,
       categoryId: args.categoryId,
       propertyId: args.propertyId,
-      receiptStorageId: args.receiptStorageId,
+      receiptStorageIds: args.receiptStorageIds,
       shareholderLoanDelta,
     });
   },

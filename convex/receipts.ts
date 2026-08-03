@@ -10,11 +10,16 @@ export const generateUploadUrl = mutation({
   },
 });
 
-export const getReceiptUrl = query({
-  args: { storageId: v.id("_storage") },
+export const getReceiptUrls = query({
+  args: { storageIds: v.array(v.id("_storage")) },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return null;
-    return await ctx.storage.getUrl(args.storageId);
+    if (!identity) return [];
+    return await Promise.all(
+      args.storageIds.map(async (storageId) => ({
+        storageId,
+        url: await ctx.storage.getUrl(storageId),
+      }))
+    );
   },
 });
