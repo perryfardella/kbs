@@ -71,6 +71,8 @@ const PROPERTY_TYPES = new Set<TransactionType>([
   "rental_expense",
 ]);
 
+const MAX_RECEIPT_PHOTOS = 5;
+
 function getLoanImpact(type: TransactionType, amount: number): { text: string; positive: boolean } | null {
   const fmt = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD", minimumFractionDigits: 2 }).format(amount);
   switch (type) {
@@ -114,8 +116,8 @@ export function AddTransactionForm({
   defaultPropertyId,
   defaultType,
 }: AddTransactionFormProps) {
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
+  const [receiptPreviews, setReceiptPreviews] = useState<string[]>([]);
   const [scanning, setScanning] = useState(false);
   const [autoFilled, setAutoFilled] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
@@ -148,8 +150,8 @@ export function AddTransactionForm({
     setSaving(false);
     setScanning(false);
     setAutoFilled(new Set());
-    setReceiptFile(null);
-    setReceiptPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
+    setReceiptFiles([]);
+    setReceiptPreviews((prev) => { prev.forEach((p) => URL.revokeObjectURL(p)); return []; });
     if (cameraInputRef.current) cameraInputRef.current.value = "";
     if (fileInputRef.current) fileInputRef.current.value = "";
     form.reset({
@@ -194,22 +196,11 @@ export function AddTransactionForm({
     });
   }
 
-  async function handleReceiptChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const raw = e.target.files?.[0] ?? null;
-    if (!raw) return;
-
-    let compressed: File;
-    try {
-      compressed = await compressImage(raw);
-    } catch {
-      setReceiptFile(raw);
-      setReceiptPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(raw); });
+  async function runScan(files: File[]) {
+    if (files.length === 0) {
+      setAutoFilled(new Set());
       return;
     }
-
-    setReceiptFile(compressed);
-    setReceiptPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(compressed); });
-
     if (!categories) {
       console.warn("[receipt scan] categories not yet loaded — skipping scan");
       return;
@@ -217,11 +208,12 @@ export function AddTransactionForm({
 
     setScanning(true);
     try {
-      const imageBase64 = await fileToBase64(compressed);
-      console.log("[receipt scan] calling scanReceipt, categories:", categories.length);
+      const images = await Promise.all(
+        files.map(async (f) => ({ imageBase64: await fileToBase64(f), imageType: "image/jpeg" }))
+      );
+      console.log("[receipt scan] calling scanReceipt, images:", images.length, "categories:", categories.length);
       const result = await scanReceipt({
-        imageBase64,
-        imageType: "image/jpeg",
+        images,
         categories: categories.map((c) => ({ id: c._id, name: c.name, realm: c.realm })),
       });
       console.log("[receipt scan] result:", result);
@@ -263,25 +255,56 @@ export function AddTransactionForm({
     }
   }
 
-  function removeReceipt() {
-    setReceiptFile(null);
-    setReceiptPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
-    setAutoFilled(new Set());
+  async function handleReceiptChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const raw = Array.from(e.target.files ?? []);
+    if (raw.length === 0) return;
+
+    const room = MAX_RECEIPT_PHOTOS - receiptFiles.length;
+    const accepted = raw.slice(0, Math.max(0, room));
+    if (accepted.length === 0) return;
+
+    const compressed = await Promise.all(
+      accepted.map(async (f) => {
+        try {
+          return await compressImage(f);
+        } catch {
+          return f;
+        }
+      })
+    );
+
+    const nextFiles = [...receiptFiles, ...compressed];
+    setReceiptFiles(nextFiles);
+    setReceiptPreviews((prev) => [...prev, ...compressed.map((f) => URL.createObjectURL(f))]);
+
+    await runScan(nextFiles);
+  }
+
+  function removeReceiptAt(index: number) {
+    const nextFiles = receiptFiles.filter((_, i) => i !== index);
+    setReceiptFiles(nextFiles);
+    setReceiptPreviews((prev) => {
+      const removed = prev[index];
+      if (removed) URL.revokeObjectURL(removed);
+      return prev.filter((_, i) => i !== index);
+    });
     if (cameraInputRef.current) cameraInputRef.current.value = "";
     if (fileInputRef.current) fileInputRef.current.value = "";
+    void runScan(nextFiles);
   }
 
   async function handleSave(data: TransactionFormValues) {
     setSaving(true);
     try {
-      let receiptStorageId: Id<"_storage"> | undefined;
-      if (receiptFile) {
-        const uploadUrl = await generateUploadUrl();
-        const res = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": receiptFile.type }, body: receiptFile });
-        if (!res.ok) throw new Error("Receipt upload failed");
-        const { storageId } = await res.json();
-        receiptStorageId = storageId as Id<"_storage">;
-      }
+      const receiptStorageIds: Id<"_storage">[] = await Promise.all(
+        receiptFiles.map(async (file) => {
+          const uploadUrl = await generateUploadUrl();
+          const res = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": file.type }, body: file });
+          if (!res.ok) throw new Error("Receipt upload failed");
+          const { storageId } = await res.json();
+          return storageId as Id<"_storage">;
+        })
+      );
       await createTransaction({
         date: data.date,
         amount: parseFloat(data.amount),
@@ -290,7 +313,7 @@ export function AddTransactionForm({
         type: data.type,
         categoryId: data.categoryId ? (data.categoryId as Id<"categories">) : undefined,
         propertyId: data.propertyId ? (data.propertyId as Id<"properties">) : undefined,
-        receiptStorageId,
+        receiptStorageIds: receiptStorageIds.length > 0 ? receiptStorageIds : undefined,
       });
       toast.success("Transaction saved");
       onSuccess();
@@ -534,35 +557,45 @@ export function AddTransactionForm({
             )}
           />
 
-          {/* Receipt Photo */}
+          {/* Receipt Photos */}
           <div className="space-y-2">
             <label className="block text-xs font-medium text-text-muted uppercase tracking-wide">
-              Receipt <span className="normal-case font-normal text-text-muted">(optional)</span>
+              Receipts <span className="normal-case font-normal text-text-muted">(optional — add more than one if the total is split across photos, e.g. an itemized receipt plus a card slip)</span>
             </label>
-            {receiptPreview ? (
-              <div className="relative rounded-2xl overflow-hidden border border-border">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={receiptPreview}
-                  alt="Receipt preview"
-                  className={`w-full max-h-52 object-cover transition-opacity duration-200 ${scanning ? "opacity-40" : ""}`}
-                />
-                {scanning ? (
-                  <div className="absolute inset-0 flex items-center justify-center gap-2">
+
+            {receiptPreviews.length > 0 && (
+              <div className="relative">
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {receiptPreviews.map((preview, i) => (
+                    <div key={preview} className="relative shrink-0 w-20 h-20 rounded-xl overflow-hidden border border-border">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={preview}
+                        alt={`Receipt ${i + 1}`}
+                        className={`w-full h-full object-cover transition-opacity duration-200 ${scanning ? "opacity-40" : ""}`}
+                      />
+                      {!scanning && (
+                        <button
+                          type="button"
+                          onClick={() => removeReceiptAt(i)}
+                          className="absolute top-1 right-1 flex items-center justify-center w-6 h-6 rounded-full bg-bg/80 active:scale-95 transition-transform"
+                        >
+                          <X size={12} className="text-text-primary" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {scanning && (
+                  <div className="absolute inset-0 flex items-center justify-center gap-2 bg-bg/60 rounded-xl">
                     <Loader2 size={16} className="animate-spin text-text-primary" />
                     <span className="text-sm font-medium text-text-primary">Scanning…</span>
                   </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={removeReceipt}
-                    className="absolute top-2 right-2 flex items-center justify-center w-8 h-8 rounded-full bg-bg/80 active:scale-95 transition-transform"
-                  >
-                    <X size={16} className="text-text-primary" />
-                  </button>
                 )}
               </div>
-            ) : (
+            )}
+
+            {receiptFiles.length < MAX_RECEIPT_PHOTOS && (
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
@@ -570,7 +603,9 @@ export function AddTransactionForm({
                   className="flex flex-row items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-surface px-4 py-2 active:bg-border/20 transition-colors min-h-[44px]"
                 >
                   <Camera size={16} className="text-text-muted" />
-                  <span className="text-sm text-text-muted">Take Photo</span>
+                  <span className="text-sm text-text-muted">
+                    {receiptFiles.length > 0 ? "Take Another Photo" : "Take Photo"}
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -578,10 +613,12 @@ export function AddTransactionForm({
                   className="flex flex-row items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-surface px-4 py-2 active:bg-border/20 transition-colors min-h-[44px]"
                 >
                   <Upload size={16} className="text-text-muted" />
-                  <span className="text-sm text-text-muted">Upload File</span>
+                  <span className="text-sm text-text-muted">
+                    {receiptFiles.length > 0 ? "Add More Photos" : "Upload Photo(s)"}
+                  </span>
                 </button>
                 <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleReceiptChange} className="sr-only" />
-                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleReceiptChange} className="sr-only" />
+                <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleReceiptChange} className="sr-only" />
               </div>
             )}
           </div>

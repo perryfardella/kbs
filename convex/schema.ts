@@ -55,7 +55,8 @@ export default defineSchema({
     type: transactionTypeValidator,
     categoryId: v.optional(v.id("categories")),
     propertyId: v.optional(v.id("properties")),
-    receiptStorageId: v.optional(v.id("_storage")),
+    receiptStorageId: v.optional(v.id("_storage")), // deprecated, superseded by receiptStorageIds — unused, kept to avoid a data migration
+    receiptStorageIds: v.optional(v.array(v.id("_storage"))),
     shareholderLoanDelta: v.number(),
   })
     .index("by_user", ["userId"])
