@@ -19,6 +19,7 @@ import {
 import {
   Drawer,
   DrawerContent,
+  DrawerBody,
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { EditRecurringForm } from "@/components/EditRecurringForm";
@@ -73,7 +74,7 @@ function EditRecurringDrawerInner() {
   return (
     <>
       <Drawer open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
-        <DrawerContent className="bg-bg border-border flex flex-col max-h-[92dvh]">
+        <DrawerContent className="bg-bg border-border">
           <DrawerTitle className="sr-only">Edit Recurring Transaction</DrawerTitle>
           <div className="flex items-center justify-between px-4 pb-3 shrink-0">
             <span className="text-base font-semibold text-text-primary">Edit Recurring</span>
@@ -99,14 +100,14 @@ function EditRecurringDrawerInner() {
               </Button>
             </div>
           </div>
-          <div className="overflow-y-auto flex-1">
+          <DrawerBody>
             {editId && (
               <EditRecurringForm
                 recurringTransactionId={editId as Id<"recurringTransactions">}
                 onSuccess={handleClose}
               />
             )}
-          </div>
+          </DrawerBody>
         </DrawerContent>
       </Drawer>
 

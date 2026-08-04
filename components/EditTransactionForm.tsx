@@ -336,7 +336,7 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
               render={({ field, fieldState }) => (
                 <FormItem>
                   <FormLabel variant="muted">Amount</FormLabel>
-                  <div className={`flex items-center gap-2 rounded-2xl border bg-surface px-4 py-2.5 ${fieldState.invalid ? "border-negative" : "border-border"}`}>
+                  <div className={`flex items-center gap-2 rounded-2xl border bg-surface px-4 py-1.5 ${fieldState.invalid ? "border-negative" : "border-border"}`}>
                     <span className="font-mono text-sm font-medium text-text-muted">CAD</span>
                     <input
                       {...field}
@@ -389,7 +389,7 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
                   <FormItem>
                     <FormLabel variant="muted">Date</FormLabel>
                     <FormControl>
-                      <Input type="date" className="font-mono" {...field} />
+                      <Input type="date" className="font-mono appearance-none" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -507,8 +507,8 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
             )}
           </div>
 
-          {/* Sticky Save Button */}
-          <div className="sticky bottom-0 left-0 right-0 z-20 px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] bg-bg/95 backdrop-blur-sm border-t border-border mt-3">
+          {/* Save Button — sits in normal flow at the end of the form */}
+          <div className="px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] border-t border-border mt-3">
             <Button type="submit" disabled={saving}>
               {saving ? "Saving…" : "Save Changes"}
             </Button>
