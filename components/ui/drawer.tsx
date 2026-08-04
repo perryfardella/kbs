@@ -1,113 +1,111 @@
 "use client"
 
 import * as React from "react"
-import { Drawer as DrawerPrimitive } from "vaul"
+import * as DialogPrimitive from "@radix-ui/react-dialog"
 
 import { cn } from "@/lib/utils"
+import { useKeyboardInset } from "@/lib/useKeyboardInset"
+import { useScrollFocusedIntoView } from "@/lib/useScrollFocusedIntoView"
 
-const Drawer = ({
-  shouldScaleBackground = true,
-  ...props
-}: React.ComponentProps<typeof DrawerPrimitive.Root>) => (
-  <DrawerPrimitive.Root
-    shouldScaleBackground={shouldScaleBackground}
-    {...props}
-  />
-)
-Drawer.displayName = "Drawer"
+const Drawer = DialogPrimitive.Root
 
-const DrawerTrigger = DrawerPrimitive.Trigger
+const DrawerTrigger = DialogPrimitive.Trigger
 
-const DrawerPortal = DrawerPrimitive.Portal
+const DrawerPortal = DialogPrimitive.Portal
 
-const DrawerClose = DrawerPrimitive.Close
+const DrawerClose = DialogPrimitive.Close
 
 const DrawerOverlay = React.forwardRef<
-  React.ElementRef<typeof DrawerPrimitive.Overlay>,
-  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Overlay>
+  React.ElementRef<typeof DialogPrimitive.Overlay>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
 >(({ className, ...props }, ref) => (
-  <DrawerPrimitive.Overlay
+  <DialogPrimitive.Overlay
     ref={ref}
-    className={cn("fixed inset-0 z-50 bg-black/80", className)}
+    className={cn(
+      "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      className
+    )}
     {...props}
   />
 ))
-DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName
+DrawerOverlay.displayName = DialogPrimitive.Overlay.displayName
 
+// Full screen on mobile — the sheet is `inset: 0` from the moment it opens,
+// so there's no edge position to track as the keyboard opens/closes; the
+// keyboard just covers the bottom of an already-full-screen surface, same
+// as on any ordinary page. Desktop (`sm:` and up) reverts to a capped,
+// centered panel since there's no keyboard-overlap problem there.
 const DrawerContent = React.forwardRef<
-  React.ElementRef<typeof DrawerPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content>
+  React.ElementRef<typeof DialogPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
 >(({ className, children, ...props }, ref) => {
-  const ownRef = React.useRef<HTMLDivElement>(null)
-
+  // iOS Safari tries to scroll the *document* to reveal a focused input even
+  // when that input lives inside a `position: fixed` ancestor — the fixed
+  // element doesn't move, but the page underneath it does, which drags the
+  // browser's own chrome (URL bar) into the middle of the screen and misaligns
+  // everything. Pin document scroll to 0,0 for as long as the sheet is open.
   React.useEffect(() => {
-    const vv = window.visualViewport
-    const el = ownRef.current
-    if (!vv || !el) return
-
-    // The drawer is `fixed`/`bottom-0`, which pins it to the layout
-    // viewport. iOS shrinks the *visual* viewport instead when the
-    // keyboard opens (the layout viewport, and `dvh`, don't change), so
-    // without this the drawer stays anchored behind the keyboard and the
-    // browser's native "scroll focused input into view" ends up scrolling
-    // the whole fixed element off the top of the screen. Track the visual
-    // viewport directly and keep the drawer's bottom edge pinned just
-    // above the keyboard instead.
-    const sync = () => {
-      const keyboardInset = Math.max(
-        0,
-        window.innerHeight - vv.height - vv.offsetTop
-      )
-      el.style.bottom = `${keyboardInset}px`
-      el.style.maxHeight = `${vv.height * 0.92}px`
-    }
     const onScroll = () => {
-      if (window.scrollY !== 0) window.scrollTo(0, 0)
+      if (window.scrollX !== 0 || window.scrollY !== 0) window.scrollTo(0, 0)
     }
-
-    sync()
-    vv.addEventListener("resize", sync)
-    vv.addEventListener("scroll", sync)
     window.addEventListener("scroll", onScroll, { passive: true })
-    return () => {
-      vv.removeEventListener("resize", sync)
-      vv.removeEventListener("scroll", sync)
-      window.removeEventListener("scroll", onScroll)
-      el.style.bottom = ""
-      el.style.maxHeight = ""
-    }
+    return () => window.removeEventListener("scroll", onScroll)
   }, [])
 
   return (
     <DrawerPortal>
       <DrawerOverlay />
-      <DrawerPrimitive.Content
-        ref={mergeRefs(ref, ownRef)}
+      <DialogPrimitive.Content
+        ref={ref}
         className={cn(
-          "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
+          "fixed inset-0 z-50 flex h-[100dvh] flex-col rounded-t-[10px] border pt-[env(safe-area-inset-top)] duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+          "sm:inset-auto sm:bottom-4 sm:left-1/2 sm:h-auto sm:max-h-[85vh] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:rounded-2xl sm:pt-0 sm:data-[state=closed]:slide-out-to-bottom-4 sm:data-[state=open]:slide-in-from-bottom-4",
           className
         )}
         {...props}
       >
-        <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted shrink-0" />
+        <div className="mx-auto mt-4 h-2 w-[100px] shrink-0 rounded-full bg-muted sm:hidden" />
         {children}
-      </DrawerPrimitive.Content>
+      </DialogPrimitive.Content>
     </DrawerPortal>
   )
 })
-DrawerContent.displayName = "DrawerContent"
+DrawerContent.displayName = DialogPrimitive.Content.displayName
 
-function mergeRefs<T>(
-  ...refs: Array<React.Ref<T> | undefined>
-): React.RefCallback<T> {
-  return (value) => {
-    for (const ref of refs) {
-      if (typeof ref === "function") ref(value)
-      else if (ref && "current" in ref)
-        (ref as React.RefObject<T | null>).current = value
-    }
-  }
-}
+// The scrollable region beneath the drawer's header. Adds bottom padding
+// equal to the keyboard's overlap so a sticky footer inside stays reachable
+// — the outer DrawerContent never moves or resizes for this, only this
+// inner container's padding grows, same as ordinary scroll-into-view. Also
+// scrolls the currently-focused field above the keyboard, since neither
+// Safari's native scroll-into-view nor a plain scrollIntoView() call knows
+// the bottom of this fixed-height container is actually covered.
+const DrawerBody = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, style, ...props }, ref) => {
+  const keyboardInset = useKeyboardInset()
+  const innerRef = React.useRef<HTMLDivElement>(null)
+  useScrollFocusedIntoView(innerRef)
+
+  const setRefs = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      innerRef.current = node
+      if (typeof ref === "function") ref(node)
+      else if (ref) ref.current = node
+    },
+    [ref]
+  )
+
+  return (
+    <div
+      ref={setRefs}
+      className={cn("flex-1 overflow-y-auto", className)}
+      style={{ paddingBottom: keyboardInset, ...style }}
+      {...props}
+    />
+  )
+})
+DrawerBody.displayName = "DrawerBody"
 
 const DrawerHeader = ({
   className,
@@ -132,10 +130,10 @@ const DrawerFooter = ({
 DrawerFooter.displayName = "DrawerFooter"
 
 const DrawerTitle = React.forwardRef<
-  React.ElementRef<typeof DrawerPrimitive.Title>,
-  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Title>
+  React.ElementRef<typeof DialogPrimitive.Title>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
 >(({ className, ...props }, ref) => (
-  <DrawerPrimitive.Title
+  <DialogPrimitive.Title
     ref={ref}
     className={cn(
       "text-lg font-semibold leading-none tracking-tight",
@@ -144,19 +142,19 @@ const DrawerTitle = React.forwardRef<
     {...props}
   />
 ))
-DrawerTitle.displayName = DrawerPrimitive.Title.displayName
+DrawerTitle.displayName = DialogPrimitive.Title.displayName
 
 const DrawerDescription = React.forwardRef<
-  React.ElementRef<typeof DrawerPrimitive.Description>,
-  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Description>
+  React.ElementRef<typeof DialogPrimitive.Description>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
 >(({ className, ...props }, ref) => (
-  <DrawerPrimitive.Description
+  <DialogPrimitive.Description
     ref={ref}
     className={cn("text-sm text-muted-foreground", className)}
     {...props}
   />
 ))
-DrawerDescription.displayName = DrawerPrimitive.Description.displayName
+DrawerDescription.displayName = DialogPrimitive.Description.displayName
 
 export {
   Drawer,
@@ -165,6 +163,7 @@ export {
   DrawerTrigger,
   DrawerClose,
   DrawerContent,
+  DrawerBody,
   DrawerHeader,
   DrawerFooter,
   DrawerTitle,

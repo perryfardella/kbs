@@ -499,7 +499,7 @@ function EditRecurringFormInner({ recurringTransactionId, rule, categories, onSu
                   {frequency === "biweekly" ? "First occurrence" : "Starting from"}
                 </FormLabel>
                 <FormControl>
-                  <Input type="date" className="font-mono" {...field} />
+                  <Input type="date" className="font-mono appearance-none" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -514,7 +514,7 @@ function EditRecurringFormInner({ recurringTransactionId, rule, categories, onSu
               <FormItem>
                 <FormLabel variant="muted">End date (optional)</FormLabel>
                 <FormControl>
-                  <Input type="date" className="font-mono" {...field} />
+                  <Input type="date" className="font-mono appearance-none" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -536,7 +536,7 @@ function EditRecurringFormInner({ recurringTransactionId, rule, categories, onSu
           />
         </div>
 
-        <div className="sticky bottom-0 left-0 right-0 z-20 px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] bg-bg/95 backdrop-blur-sm border-t border-border mt-3">
+        <div className="px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] border-t border-border mt-3">
           <Button type="submit" disabled={saving}>
             {saving ? "Saving…" : "Save Changes"}
           </Button>

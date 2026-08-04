@@ -19,6 +19,7 @@ import {
 import {
   Drawer,
   DrawerContent,
+  DrawerBody,
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { EditTransactionForm } from "@/components/EditTransactionForm";
@@ -56,7 +57,7 @@ function EditTransactionDrawerInner() {
   return (
     <>
       <Drawer open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
-        <DrawerContent className="bg-bg border-border flex flex-col max-h-[92dvh]">
+        <DrawerContent className="bg-bg border-border">
           <DrawerTitle className="sr-only">Edit Transaction</DrawerTitle>
           {/* Header */}
           <div className="flex items-center justify-between px-4 pb-3 shrink-0">
@@ -76,14 +77,14 @@ function EditTransactionDrawerInner() {
             </div>
           </div>
           {/* Scrollable form */}
-          <div className="overflow-y-auto flex-1">
+          <DrawerBody>
             {editId && (
               <EditTransactionForm
                 transactionId={editId as Id<"transactions">}
                 onSuccess={handleClose}
               />
             )}
-          </div>
+          </DrawerBody>
         </DrawerContent>
       </Drawer>
 

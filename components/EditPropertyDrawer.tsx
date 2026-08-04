@@ -16,7 +16,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerBody, DrawerTitle } from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PropertyForm } from "@/components/PropertyForm";
 
@@ -70,7 +70,7 @@ function EditPropertyDrawerInner({ propertyId }: { propertyId: Id<"properties"> 
   return (
     <>
       <Drawer open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
-        <DrawerContent className="bg-bg border-border flex flex-col max-h-[92dvh]">
+        <DrawerContent className="bg-bg border-border">
           <DrawerTitle className="sr-only">Edit Property</DrawerTitle>
           <div className="flex items-center justify-between px-4 pb-3 shrink-0">
             <span className="text-base font-semibold text-text-primary">Edit Property</span>
@@ -86,7 +86,7 @@ function EditPropertyDrawerInner({ propertyId }: { propertyId: Id<"properties"> 
               </Button>
             </div>
           </div>
-          <div className="overflow-y-auto flex-1">
+          <DrawerBody>
             {property === undefined ? (
               <div className="px-4 pt-2 space-y-3 pb-2">
                 <Skeleton className="h-11 w-full rounded-2xl" />
@@ -105,7 +105,7 @@ function EditPropertyDrawerInner({ propertyId }: { propertyId: Id<"properties"> 
                 initialAddress={property.address ?? ""}
               />
             )}
-          </div>
+          </DrawerBody>
         </DrawerContent>
       </Drawer>
 

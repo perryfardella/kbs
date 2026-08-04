@@ -163,7 +163,7 @@ export function ApplyOccurrenceForm({
         />
       </div>
 
-      <div className="sticky bottom-0 left-0 right-0 z-20 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] bg-bg/95 backdrop-blur-sm border-t border-border mt-1 -mx-4 px-4">
+      <div className="pt-3 pb-[max(12px,env(safe-area-inset-bottom))] border-t border-border mt-1 -mx-4 px-4">
         <Button onClick={handleApply} disabled={saving}>
           {saving ? "Applying…" : `Apply — ${formatCAD(parseFloat(amountStr) || 0)}`}
         </Button>
