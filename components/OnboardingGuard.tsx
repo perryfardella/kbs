@@ -1,12 +1,13 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useEffect, useMemo, useRef } from "react";
 import { useUser } from "@clerk/nextjs";
 
 export function OnboardingGuard({ children }: { children: React.ReactNode }) {
-  const settings = useQuery(api.settings.get);
+  const { isAuthenticated: isConvexAuthenticated } = useConvexAuth();
+  const settings = useQuery(api.settings.get, isConvexAuthenticated ? {} : "skip");
   const ensureDefaults = useMutation(api.settings.ensureDefaults);
   const hasEnsuredRef = useRef(false);
   const inFlightRef = useRef(false);
@@ -22,6 +23,10 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
   }, [isClerkLoaded, user]);
 
   useEffect(() => {
+    // Convex must have finished attaching the auth token before we can
+    // trust `settings === null` to mean "no settings row exists yet"
+    // rather than "not authenticated yet".
+    if (!isConvexAuthenticated) return;
     if (settings === null && ownerName) {
       if (hasEnsuredRef.current || inFlightRef.current) return;
       inFlightRef.current = true;
@@ -39,10 +44,10 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
     if (settings !== null && settings !== undefined) {
       hasEnsuredRef.current = true;
     }
-  }, [ensureDefaults, ownerName, settings]);
+  }, [ensureDefaults, ownerName, settings, isConvexAuthenticated]);
 
-  // Avoid showing the app before `settings` exist.
-  if (settings === undefined || settings === null) return null;
+  // Avoid showing the app before we're authenticated and `settings` exist.
+  if (!isConvexAuthenticated || settings === undefined || settings === null) return null;
 
   return <>{children}</>;
 }
