@@ -66,22 +66,19 @@ export const ensureDefaults = mutation({
       .query("settings")
       .withIndex("by_user", (q) => q.eq("userId", identity.tokenIdentifier))
       .unique();
-    const ownerName = formatOwnerName(args.ownerName);
-    const companyName = `${ownerName}'s company`;
-
-    const data = {
-      userId: identity.tokenIdentifier,
-      companyName,
-      fiscalYearEnd: "03-31", // March 31
-      currency: "CAD",
-    };
 
     let settingsId: string;
     if (existing) {
-      await ctx.db.replace(existing._id, data);
       settingsId = existing._id;
     } else {
-      settingsId = await ctx.db.insert("settings", data);
+      const ownerName = formatOwnerName(args.ownerName);
+      const companyName = `${ownerName}'s company`;
+      settingsId = await ctx.db.insert("settings", {
+        userId: identity.tokenIdentifier,
+        companyName,
+        fiscalYearEnd: "03-31", // March 31
+        currency: "CAD",
+      });
     }
 
     // Seed default categories as part of first-run initialization.
