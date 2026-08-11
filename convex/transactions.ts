@@ -1,6 +1,7 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
+import { Id } from "./_generated/dataModel";
 
 const transactionTypeValidator = v.union(
   v.literal("personal_expense"),
@@ -297,14 +298,35 @@ export const getSummary = query({
   },
 });
 
-export const getForExport = query({
+// Types whose amount rolls up into the "Personal" vs "Business" expense
+// buckets shown on Reports (matches the switch in getSummary above).
+const PERSONAL_TYPES = new Set(["personal_expense", "personal_expense_business_pay"]);
+const BUSINESS_TYPES = new Set(["business_expense", "business_expense_personal_pay"]);
+
+async function joinCategoryNames<T extends { categoryId?: Id<"categories"> }>(
+  ctx: QueryCtx,
+  userId: string,
+  txns: T[]
+): Promise<(T & { categoryName: string | null })[]> {
+  const categories = await ctx.db
+    .query("categories")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .collect();
+  const categoryNames = new Map(categories.map((c) => [c._id, c.name]));
+  return txns.map((tx) => ({
+    ...tx,
+    categoryName: tx.categoryId ? (categoryNames.get(tx.categoryId) ?? null) : null,
+  }));
+}
+
+export const getExpenseBreakdown = query({
   args: {
     startDate: v.string(),
     endDate: v.string(),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return [];
+    if (!identity) return null;
     const txns = await ctx.db
       .query("transactions")
       .withIndex("by_user_date", (q) =>
@@ -315,15 +337,71 @@ export const getForExport = query({
       )
       .order("asc")
       .take(2000);
-    const result = [];
-    for (const tx of txns) {
-      let categoryName: string | null = null;
-      if (tx.categoryId) {
-        const category = await ctx.db.get(tx.categoryId);
-        categoryName = category?.name ?? null;
-      }
-      result.push({ ...tx, categoryName });
+
+    const personalTxns = txns.filter((tx) => PERSONAL_TYPES.has(tx.type));
+    const businessTxns = txns.filter((tx) => BUSINESS_TYPES.has(tx.type));
+
+    const personalRows = await joinCategoryNames(ctx, identity.tokenIdentifier, personalTxns);
+    const businessRows = await joinCategoryNames(ctx, identity.tokenIdentifier, businessTxns);
+
+    return {
+      personal: summarizeByCategory(personalRows),
+      business: summarizeByCategory(businessRows),
+    };
+  },
+});
+
+function summarizeByCategory<
+  T extends { categoryId?: Id<"categories">; categoryName: string | null; amount: number },
+>(rows: T[]) {
+  const byCategoryMap = new Map<string, { categoryId: Id<"categories"> | null; name: string; amount: number }>();
+  let total = 0;
+  for (const row of rows) {
+    total += row.amount;
+    const key = row.categoryId ?? "uncategorized";
+    const name = row.categoryName ?? "Uncategorized";
+    const existing = byCategoryMap.get(key);
+    if (existing) {
+      existing.amount += row.amount;
+    } else {
+      byCategoryMap.set(key, { categoryId: row.categoryId ?? null, name, amount: row.amount });
     }
-    return result;
+  }
+  const byCategory = Array.from(byCategoryMap.values()).sort((a, b) => b.amount - a.amount);
+  return { total, byCategory, rows };
+}
+
+export const getLoanLedgerRange = query({
+  args: {
+    startDate: v.string(),
+    endDate: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+    const txns = await ctx.db
+      .query("transactions")
+      .withIndex("by_user_date", (q) => q.eq("userId", identity.tokenIdentifier))
+      .order("asc")
+      .collect();
+
+    let runningBalance = 0;
+    let openingBalance = 0;
+    const entries = [];
+    for (const tx of txns) {
+      if (tx.shareholderLoanDelta === 0) continue;
+      const isBeforeRange = tx.date < args.startDate;
+      runningBalance += tx.shareholderLoanDelta;
+      if (isBeforeRange) {
+        openingBalance = runningBalance;
+      } else if (tx.date <= args.endDate) {
+        entries.push({ ...tx, runningBalance });
+      }
+    }
+    const closingBalance = entries.length > 0
+      ? entries[entries.length - 1].runningBalance
+      : openingBalance;
+
+    return { openingBalance, closingBalance, entries };
   },
 });
