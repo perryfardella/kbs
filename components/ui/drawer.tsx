@@ -35,15 +35,17 @@ DrawerOverlay.displayName = DialogPrimitive.Overlay.displayName
 // keyboard just covers the bottom of an already-full-screen surface, same
 // as on any ordinary page. Desktop (`sm:` and up) reverts to a capped,
 // centered panel since there's no keyboard-overlap problem there.
-const DrawerContent = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => {
-  // iOS Safari tries to scroll the *document* to reveal a focused input even
-  // when that input lives inside a `position: fixed` ancestor — the fixed
-  // element doesn't move, but the page underneath it does, which drags the
-  // browser's own chrome (URL bar) into the middle of the screen and misaligns
-  // everything. Pin document scroll to 0,0 for as long as the sheet is open.
+// iOS Safari tries to scroll the *document* to reveal a focused input even
+// when that input lives inside a `position: fixed` ancestor — the fixed
+// element doesn't move, but the page underneath it does, which drags the
+// browser's own chrome (URL bar) into the middle of the screen and misaligns
+// everything. Pin document scroll to 0,0 for as long as the sheet is open.
+// Rendered *inside* DialogPrimitive.Content (not the DrawerContent wrapper
+// itself) so the effect only lives for as long as Radix actually presents
+// the dialog — DialogPrimitive.Root always renders its children regardless
+// of `open`, so a listener attached at the wrapper level would run for every
+// mounted drawer on the page, permanently pinning scroll to the top.
+function ScrollPinWhileOpen() {
   React.useEffect(() => {
     const onScroll = () => {
       if (window.scrollX !== 0 || window.scrollY !== 0) window.scrollTo(0, 0)
@@ -51,7 +53,13 @@ const DrawerContent = React.forwardRef<
     window.addEventListener("scroll", onScroll, { passive: true })
     return () => window.removeEventListener("scroll", onScroll)
   }, [])
+  return null
+}
 
+const DrawerContent = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
+>(({ className, children, ...props }, ref) => {
   return (
     <DrawerPortal>
       <DrawerOverlay />
@@ -64,6 +72,7 @@ const DrawerContent = React.forwardRef<
         )}
         {...props}
       >
+        <ScrollPinWhileOpen />
         <div className="mx-auto mt-4 h-2 w-[100px] shrink-0 rounded-full bg-muted sm:hidden" />
         {children}
       </DialogPrimitive.Content>
