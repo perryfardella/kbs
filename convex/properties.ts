@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
 
 // Transaction types that count as an expense against a property's P&L.
 // rental_income is the only "income" type; everything else tagged to a
@@ -142,6 +143,98 @@ export const getRentalSummary = query({
       else if (tx.propertyId && EXPENSE_TYPES.has(tx.type)) expenses += tx.amount;
     }
     return { income, expenses, net: income - expenses };
+  },
+});
+
+// Per-property breakdown for the Reports Rental tab. Reconciles with
+// getRentalSummary/getPropertySummary above: income = rental_income
+// (regardless of property tag), expenses = anything tagged to a property
+// whose type is in EXPENSE_TYPES (so a business_expense billed against a
+// property counts here too, and also on the Business tab in Reports).
+export const getRentalBreakdown = query({
+  args: {
+    startDate: v.string(),
+    endDate: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+
+    const properties = await ctx.db
+      .query("properties")
+      .withIndex("by_user_active", (q) =>
+        q.eq("userId", identity.tokenIdentifier).eq("isActive", true)
+      )
+      .collect();
+    const propertyNames = new Map(properties.map((p) => [p._id, p.name]));
+
+    const categories = await ctx.db
+      .query("categories")
+      .withIndex("by_user", (q) => q.eq("userId", identity.tokenIdentifier))
+      .collect();
+    const categoryNames = new Map(categories.map((c) => [c._id, c.name]));
+
+    const txns = await ctx.db
+      .query("transactions")
+      .withIndex("by_user_date", (q) =>
+        q
+          .eq("userId", identity.tokenIdentifier)
+          .gte("date", args.startDate)
+          .lte("date", args.endDate)
+      )
+      .order("asc")
+      .collect();
+
+    const byPropertyMap = new Map<
+      Id<"properties">,
+      { propertyId: Id<"properties">; name: string; income: number; expenses: number }
+    >();
+    for (const property of properties) {
+      byPropertyMap.set(property._id, {
+        propertyId: property._id,
+        name: property.name,
+        income: 0,
+        expenses: 0,
+      });
+    }
+
+    let totalIncome = 0;
+    let totalExpenses = 0;
+    const rows = [];
+
+    for (const tx of txns) {
+      const isIncome = tx.type === "rental_income";
+      const isExpense = tx.propertyId != null && EXPENSE_TYPES.has(tx.type);
+      if (!isIncome && !isExpense) continue;
+
+      rows.push({
+        ...tx,
+        categoryName: tx.categoryId ? (categoryNames.get(tx.categoryId) ?? null) : null,
+        propertyName: tx.propertyId ? (propertyNames.get(tx.propertyId) ?? null) : null,
+      });
+
+      if (isIncome) {
+        totalIncome += tx.amount;
+        const bucket = tx.propertyId ? byPropertyMap.get(tx.propertyId) : undefined;
+        if (bucket) bucket.income += tx.amount;
+      }
+      if (isExpense) {
+        totalExpenses += tx.amount;
+        const bucket = byPropertyMap.get(tx.propertyId!);
+        if (bucket) bucket.expenses += tx.amount;
+      }
+    }
+
+    const byProperty = Array.from(byPropertyMap.values()).map((p) => ({
+      ...p,
+      net: p.income - p.expenses,
+    }));
+
+    return {
+      total: { income: totalIncome, expenses: totalExpenses, net: totalIncome - totalExpenses },
+      byProperty,
+      rows,
+    };
   },
 });
 
