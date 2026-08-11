@@ -1,4 +1,4 @@
-const CACHE_NAME = "kbs-v1";
+const CACHE_NAME = "kbs-v2";
 const STATIC_ASSETS = ["/offline.html", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -25,18 +25,26 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Cache-first for Next.js static assets
+  // Stale-while-revalidate for Next.js static assets: serve the cached copy
+  // immediately for speed, but always refetch in the background so the cache
+  // (and the next load) picks up new deploys instead of serving a chunk
+  // forever once it's been cached once.
   if (url.pathname.startsWith("/_next/static/")) {
     event.respondWith(
-      caches.match(request).then(
-        (cached) =>
-          cached ||
-          fetch(request).then((response) => {
+      caches.match(request).then((cached) => {
+        const network = fetch(request)
+          .then((response) => {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
             return response;
           })
-      )
+          .catch(() => cached);
+        if (cached) {
+          event.waitUntil(network);
+          return cached;
+        }
+        return network;
+      })
     );
     return;
   }
