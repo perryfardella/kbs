@@ -12,6 +12,8 @@ const EXPENSE_TYPE_REALMS: Record<string, CategoryRealm> = {
   dividend_payment: null,
   rental_income: null,
   rental_expense: "rental",
+  business_income: "business",
+  personal_income: "personal",
 };
 
 const RENTAL_TYPES = ["rental_income", "rental_expense"];
@@ -28,6 +30,8 @@ export const recurringTransactionSchema = z
       "dividend_payment",
       "rental_income",
       "rental_expense",
+      "business_income",
+      "personal_income",
     ]),
     amount: z
       .string()

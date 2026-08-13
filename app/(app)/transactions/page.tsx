@@ -30,7 +30,9 @@ type TransactionType =
   | "transfer_to_business"
   | "dividend_payment"
   | "rental_income"
-  | "rental_expense";
+  | "rental_expense"
+  | "business_income"
+  | "personal_income";
 
 type FilterChip = "all" | "personal" | "business" | "transfers" | "property";
 type BadgeVariant = "personal" | "business" | "transfer" | "rental";
@@ -45,10 +47,12 @@ const typeConfig: Record<TransactionType, { label: string; variant: BadgeVariant
   dividend_payment:             { label: "Dividend",          variant: "transfer", indicator: "bg-badge-transfer" },
   rental_income:                { label: "Rental Income",     variant: "rental",   indicator: "bg-badge-rental" },
   rental_expense:               { label: "Rental Expense",    variant: "rental",   indicator: "bg-badge-rental" },
+  personal_income:              { label: "Personal Income",   variant: "personal", indicator: "bg-badge-personal" },
+  business_income:              { label: "Business Income",   variant: "business", indicator: "bg-badge-business" },
 };
 
-const PERSONAL_TYPES: TransactionType[] = ["personal_expense", "personal_expense_business_pay"];
-const BUSINESS_TYPES: TransactionType[] = ["business_expense", "business_expense_personal_pay"];
+const PERSONAL_TYPES: TransactionType[] = ["personal_expense", "personal_expense_business_pay", "personal_income"];
+const BUSINESS_TYPES: TransactionType[] = ["business_expense", "business_expense_personal_pay", "business_income"];
 const TRANSFER_TYPES: TransactionType[] = ["transfer_to_personal", "transfer_to_business", "dividend_payment"];
 const RENTAL_TYPES: TransactionType[] = ["rental_income", "rental_expense"];
 

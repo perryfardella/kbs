@@ -39,7 +39,9 @@ type TransactionType =
   | "transfer_to_business"
   | "dividend_payment"
   | "rental_income"
-  | "rental_expense";
+  | "rental_expense"
+  | "business_income"
+  | "personal_income";
 
 type BadgeVariant = "personal" | "business" | "transfer" | "rental";
 
@@ -53,6 +55,8 @@ const typeConfig: Record<TransactionType, { label: string; variant: BadgeVariant
   dividend_payment:              { label: "Dividend",            variant: "transfer" },
   rental_income:                 { label: "Rental Income",      variant: "rental"   },
   rental_expense:                { label: "Rental Expense",     variant: "rental"   },
+  personal_income:               { label: "Personal Income",    variant: "personal" },
+  business_income:               { label: "Business Income",    variant: "business" },
 };
 
 const now = new Date();
@@ -153,7 +157,27 @@ export default function DashboardPage() {
         {/* Quick Stats Row */}
         <div className="grid grid-cols-2 gap-3">
           <Card className="p-4 space-y-1">
-            <p className="text-xs text-text-muted font-medium">Personal · This Month</p>
+            <p className="text-xs text-text-muted font-medium">Personal Income · This Month</p>
+            {summary === undefined ? (
+              <Skeleton className="h-6 w-28" />
+            ) : (
+              <p className="font-mono text-lg font-semibold text-positive text-right">
+                {formatCAD(summary?.totalPersonalIncome ?? 0)}
+              </p>
+            )}
+          </Card>
+          <Card className="p-4 space-y-1">
+            <p className="text-xs text-text-muted font-medium">Business Income · This Month</p>
+            {summary === undefined ? (
+              <Skeleton className="h-6 w-28" />
+            ) : (
+              <p className="font-mono text-lg font-semibold text-positive text-right">
+                {formatCAD(summary?.totalBusinessIncome ?? 0)}
+              </p>
+            )}
+          </Card>
+          <Card className="p-4 space-y-1">
+            <p className="text-xs text-text-muted font-medium">Personal Expenses · This Month</p>
             {summary === undefined ? (
               <Skeleton className="h-6 w-28" />
             ) : (
@@ -163,7 +187,7 @@ export default function DashboardPage() {
             )}
           </Card>
           <Card className="p-4 space-y-1">
-            <p className="text-xs text-text-muted font-medium">Business · This Month</p>
+            <p className="text-xs text-text-muted font-medium">Business Expenses · This Month</p>
             {summary === undefined ? (
               <Skeleton className="h-6 w-28" />
             ) : (

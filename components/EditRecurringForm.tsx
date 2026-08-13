@@ -42,7 +42,9 @@ type TransactionType =
   | "transfer_to_business"
   | "dividend_payment"
   | "rental_income"
-  | "rental_expense";
+  | "rental_expense"
+  | "business_income"
+  | "personal_income";
 
 type CategoryRealm = "personal" | "business" | "rental" | null;
 
@@ -51,9 +53,12 @@ const TYPE_OPTIONS: {
   label: string;
   tooltip?: string;
   categoryRealm: CategoryRealm;
+  isIncome?: boolean;
 }[] = [
   { value: "personal_expense",              label: "Personal Expense",                categoryRealm: "personal" },
   { value: "business_expense",              label: "Business Expense",                categoryRealm: "business" },
+  { value: "personal_income",               label: "Personal Income",                 tooltip: "Money you earn personally, outside the corp (e.g. another job, freelance work)", categoryRealm: "personal", isIncome: true },
+  { value: "business_income",               label: "Business Income",                 tooltip: "Recurring revenue the corp receives for services rendered", categoryRealm: "business", isIncome: true },
   { value: "business_expense_personal_pay", label: "Biz Expense (Personal Pay)",      tooltip: "I pay a business expense from my own pocket", categoryRealm: "business" },
   { value: "personal_expense_business_pay", label: "Personal Expense (Business Pay)", tooltip: "I pay a personal expense from the business account", categoryRealm: "personal" },
   { value: "rental_income",                 label: "Rental Income",                   tooltip: "Recurring rent or income from an investment property", categoryRealm: null },
@@ -173,6 +178,7 @@ function EditRecurringFormInner({ recurringTransactionId, rule, categories, onSu
 
   const filteredCategories = categories.filter((cat) => {
     if (!showCategory) return false;
+    if (Boolean(cat.isIncome) !== Boolean(selectedOption.isIncome)) return false;
     const realm = selectedOption.categoryRealm;
     if (realm === "personal") return cat.realm === "personal" || cat.realm === "both";
     if (realm === "business") return cat.realm === "business" || cat.realm === "both";

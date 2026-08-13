@@ -12,7 +12,9 @@ const transactionTypeValidator = v.union(
   v.literal("transfer_to_business"),
   v.literal("dividend_payment"),
   v.literal("rental_income"),
-  v.literal("rental_expense")
+  v.literal("rental_expense"),
+  v.literal("business_income"),
+  v.literal("personal_income")
 );
 
 type TransactionType =
@@ -24,7 +26,9 @@ type TransactionType =
   | "transfer_to_business"
   | "dividend_payment"
   | "rental_income"
-  | "rental_expense";
+  | "rental_expense"
+  | "business_income"
+  | "personal_income";
 
 function computeDelta(type: TransactionType, amount: number): number {
   switch (type) {

@@ -21,7 +21,9 @@ type TransactionTypeParam =
   | "transfer_to_business"
   | "dividend_payment"
   | "rental_income"
-  | "rental_expense";
+  | "rental_expense"
+  | "business_income"
+  | "personal_income";
 
 function AddTransactionDrawerInner() {
   const searchParams = useSearchParams();

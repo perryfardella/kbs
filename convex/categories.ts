@@ -5,6 +5,7 @@ import { Id } from "./_generated/dataModel";
 const DEFAULT_CATEGORIES: Array<{
   name: string;
   realm: "personal" | "business" | "both" | "rental";
+  isIncome?: boolean;
 }> = [
   // Business (13)
   { name: "Medical Supplies & Equipment", realm: "business" },
@@ -39,6 +40,14 @@ const DEFAULT_CATEGORIES: Array<{
   { name: "Property Management", realm: "rental" },
   { name: "Utilities (rental)", realm: "rental" },
   { name: "Other Rental", realm: "rental" },
+  // Business Income (3)
+  { name: "Client Fees / Consulting", realm: "business", isIncome: true },
+  { name: "Contract Work", realm: "business", isIncome: true },
+  { name: "Other Business Income", realm: "business", isIncome: true },
+  // Personal Income (3)
+  { name: "Employment Income", realm: "personal", isIncome: true },
+  { name: "Freelance/Side Income", realm: "personal", isIncome: true },
+  { name: "Other Personal Income", realm: "personal", isIncome: true },
 ];
 
 export const list = query({
@@ -64,6 +73,7 @@ export const create = mutation({
       v.literal("both"),
       v.literal("rental")
     ),
+    isIncome: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -72,6 +82,7 @@ export const create = mutation({
       userId: identity.tokenIdentifier,
       name: args.name,
       realm: args.realm,
+      isIncome: args.isIncome ?? false,
       isDefault: false,
       isArchived: false,
     });
@@ -140,6 +151,39 @@ export const backfillRentalCategories = internalMutation({
   },
 });
 
+// One-time backfill: give every existing user the default income categories.
+// New users receive them via seedDefaults; this covers accounts created before
+// income categories existed. Idempotent — skips users that already have any.
+// Run once after deploy: `pnpm dlx convex run categories:backfillIncomeCategories`
+export const backfillIncomeCategories = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const incomeDefaults = DEFAULT_CATEGORIES.filter((c) => c.isIncome);
+    const all = await ctx.db.query("categories").collect();
+    const userIds = new Set(all.map((c) => c.userId));
+
+    let usersUpdated = 0;
+    let inserted = 0;
+    for (const userId of userIds) {
+      const hasIncome = all.some((c) => c.userId === userId && c.isIncome);
+      if (hasIncome) continue;
+      for (const cat of incomeDefaults) {
+        await ctx.db.insert("categories", {
+          userId,
+          name: cat.name,
+          realm: cat.realm,
+          isIncome: true,
+          isDefault: true,
+          isArchived: false,
+        });
+        inserted++;
+      }
+      usersUpdated++;
+    }
+    return { usersUpdated, inserted };
+  },
+});
+
 export const seedDefaults = mutation({
   args: {},
   handler: async (ctx) => {
@@ -158,6 +202,7 @@ export const seedDefaults = mutation({
         userId: identity.tokenIdentifier,
         name: cat.name,
         realm: cat.realm,
+        isIncome: cat.isIncome ?? false,
         isDefault: true,
         isArchived: false,
       });

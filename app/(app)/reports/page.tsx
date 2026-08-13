@@ -26,6 +26,8 @@ const TYPE_LABELS: Record<string, string> = {
   transfer_to_personal: "Corp → Personal Transfer",
   transfer_to_business: "Personal → Business Transfer",
   dividend_payment: "Dividend / Repayment",
+  personal_income: "Personal Income",
+  business_income: "Business Income",
 };
 
 function computeFiscalYear(fiscalYearEnd: string): { startDate: string; endDate: string } {
@@ -166,8 +168,12 @@ export default function ReportsPage() {
             Summary
           </p>
           <div className="grid grid-cols-2 gap-3">
+            <SummaryCard label="Personal Income" value={summary?.totalPersonalIncome} isLoading={isLoading} colour="text-badge-personal" />
+            <SummaryCard label="Business Income" value={summary?.totalBusinessIncome} isLoading={isLoading} colour="text-badge-business" />
             <SummaryCard label="Personal Expenses" value={summary?.totalPersonalExpenses} isLoading={isLoading} colour="text-badge-personal" />
             <SummaryCard label="Business Expenses" value={summary?.totalBusinessExpenses} isLoading={isLoading} colour="text-badge-business" />
+            <SummaryCard label="Net Personal" value={summary?.netPersonal} isLoading={isLoading} signed />
+            <SummaryCard label="Net Business" value={summary?.netBusiness} isLoading={isLoading} signed />
             <SummaryCard label="Corp → Personal" value={summary?.totalTransferToPersonal} isLoading={isLoading} colour="text-badge-transfer" />
             <SummaryCard label="Personal → Business" value={summary?.totalTransferToBusiness} isLoading={isLoading} colour="text-badge-transfer" />
             <SummaryCard label="Net Loan Change" value={summary?.netShareholderLoanChange} isLoading={isLoading} signed />
