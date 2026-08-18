@@ -46,3 +46,7 @@ convex/_generated/
 next-env.d.ts
 
 certificates
+
+# playwright
+test-results/
+playwright-report/
