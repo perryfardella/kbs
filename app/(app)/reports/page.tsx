@@ -145,6 +145,18 @@ export default function ReportsPage() {
           </p>
           <div className="grid grid-cols-2 gap-3">
             <SummaryCard
+              label="Personal Income"
+              value={expenseBreakdown?.personalIncome.total}
+              isLoading={isLoading}
+              colour="text-badge-personal"
+            />
+            <SummaryCard
+              label="Business Income"
+              value={expenseBreakdown?.businessIncome.total}
+              isLoading={isLoading}
+              colour="text-badge-business"
+            />
+            <SummaryCard
               label="Personal Expenses"
               value={expenseBreakdown?.personal.total}
               isLoading={isLoading}
@@ -180,20 +192,50 @@ export default function ReportsPage() {
             <TabsTrigger value="loan">Loan</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="personal" className="pt-3">
-            <CategoryBreakdownList
-              byCategory={expenseBreakdown?.personal.byCategory}
-              isLoading={isLoading}
-              emptyMessage="No personal expenses in this range."
-            />
+          <TabsContent value="personal" className="pt-3 space-y-4">
+            <div className="space-y-2">
+              <p className="px-1 text-xs font-semibold text-text-muted uppercase tracking-wide">
+                Income
+              </p>
+              <CategoryBreakdownList
+                byCategory={expenseBreakdown?.personalIncome.byCategory}
+                isLoading={isLoading}
+                emptyMessage="No personal income in this range."
+              />
+            </div>
+            <div className="space-y-2">
+              <p className="px-1 text-xs font-semibold text-text-muted uppercase tracking-wide">
+                Expenses
+              </p>
+              <CategoryBreakdownList
+                byCategory={expenseBreakdown?.personal.byCategory}
+                isLoading={isLoading}
+                emptyMessage="No personal expenses in this range."
+              />
+            </div>
           </TabsContent>
 
-          <TabsContent value="business" className="pt-3">
-            <CategoryBreakdownList
-              byCategory={expenseBreakdown?.business.byCategory}
-              isLoading={isLoading}
-              emptyMessage="No business expenses in this range."
-            />
+          <TabsContent value="business" className="pt-3 space-y-4">
+            <div className="space-y-2">
+              <p className="px-1 text-xs font-semibold text-text-muted uppercase tracking-wide">
+                Income
+              </p>
+              <CategoryBreakdownList
+                byCategory={expenseBreakdown?.businessIncome.byCategory}
+                isLoading={isLoading}
+                emptyMessage="No business income in this range."
+              />
+            </div>
+            <div className="space-y-2">
+              <p className="px-1 text-xs font-semibold text-text-muted uppercase tracking-wide">
+                Expenses
+              </p>
+              <CategoryBreakdownList
+                byCategory={expenseBreakdown?.business.byCategory}
+                isLoading={isLoading}
+                emptyMessage="No business expenses in this range."
+              />
+            </div>
           </TabsContent>
 
           <TabsContent value="rental" className="pt-3">

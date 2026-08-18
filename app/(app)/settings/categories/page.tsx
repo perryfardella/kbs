@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Toggle } from "@/components/ui/toggle";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ListContainer, ListItem } from "@/components/ui/list-container";
 import { Card } from "@/components/ui/card";
@@ -19,6 +20,9 @@ import { z } from "zod";
 import { PageHeader } from "@/components/PageHeader";
 
 type Tab = "personal" | "business" | "rental";
+type Kind = "expense" | "income";
+
+type CategoryData = NonNullable<ReturnType<typeof useQuery<typeof api.categories.list>>>[number];
 
 const categorySchema = z.object({
   name: z.string().min(1, "Category name is required"),
@@ -28,6 +32,7 @@ type CategoryFormValues = z.infer<typeof categorySchema>;
 
 export default function CategoriesPage() {
   const [activeTab, setActiveTab] = useState<Tab>("personal");
+  const [addKind, setAddKind] = useState<Kind>("expense");
   const [addingPersonal, setAddingPersonal] = useState(false);
   const [addingBusiness, setAddingBusiness] = useState(false);
   const [addingRental, setAddingRental] = useState(false);
@@ -45,14 +50,18 @@ export default function CategoriesPage() {
     defaultValues: { name: "" },
   });
 
-  const personalCategories =
-    categories?.filter((c) => c.realm === "personal" || c.realm === "both") ?? [];
-  const businessCategories =
-    categories?.filter((c) => c.realm === "business" || c.realm === "both") ?? [];
+  const personalExpenseCategories =
+    categories?.filter((c) => (c.realm === "personal" || c.realm === "both") && !c.isIncome) ?? [];
+  const personalIncomeCategories =
+    categories?.filter((c) => (c.realm === "personal" || c.realm === "both") && c.isIncome) ?? [];
+  const businessExpenseCategories =
+    categories?.filter((c) => (c.realm === "business" || c.realm === "both") && !c.isIncome) ?? [];
+  const businessIncomeCategories =
+    categories?.filter((c) => (c.realm === "business" || c.realm === "both") && c.isIncome) ?? [];
   const rentalCategories =
     categories?.filter((c) => c.realm === "rental") ?? [];
 
-  async function handleAdd(tab: Tab) {
+  async function handleAdd(tab: Tab, kind: Kind) {
     const { name } = form.getValues();
     const setAdding =
       tab === "personal"
@@ -62,7 +71,7 @@ export default function CategoriesPage() {
         : setAddingRental;
     setAdding(true);
     try {
-      await createCategory({ name: name.trim(), realm: tab });
+      await createCategory({ name: name.trim(), realm: tab, isIncome: kind === "income" });
       form.reset();
     } finally {
       setAdding(false);
@@ -92,93 +101,138 @@ export default function CategoriesPage() {
       ? addingBusiness
       : addingRental;
 
-  function CategoryList({ cats }: { cats: typeof personalCategories }) {
+  function CategoryList({ cats, emptyLabel }: { cats: CategoryData[]; emptyLabel: string }) {
+    if (isLoading) {
+      return (
+        <ListContainer>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <ListItem key={i}>
+              <Skeleton className="h-4 flex-1" />
+              <Skeleton className="h-8 w-8 rounded-lg" />
+            </ListItem>
+          ))}
+        </ListContainer>
+      );
+    }
+    if (cats.length === 0) {
+      return (
+        <div className="rounded-2xl border border-border bg-surface px-4 py-6 text-center text-sm text-text-muted">
+          {emptyLabel}
+        </div>
+      );
+    }
     return (
-      <>
-        {isLoading ? (
-          <ListContainer>
-            {Array.from({ length: 5 }).map((_, i) => (
-              <ListItem key={i}>
-                <Skeleton className="h-4 flex-1" />
-                <Skeleton className="h-8 w-8 rounded-lg" />
-              </ListItem>
-            ))}
-          </ListContainer>
-        ) : cats.length === 0 ? (
-          <div className="rounded-2xl border border-border bg-surface px-4 py-8 text-center text-sm text-text-muted">
-            No {activeTab} categories. Add one below.
-          </div>
-        ) : (
-          <ListContainer>
-            {cats.map((cat) => (
-              <ListItem key={cat._id} className="gap-2">
-                <span className="flex-1 text-sm text-text-primary truncate">
-                  {cat.name}
-                </span>
-                {cat.isDefault && (
-                  <Badge variant="accent">Default</Badge>
-                )}
+      <ListContainer>
+        {cats.map((cat) => (
+          <ListItem key={cat._id} className="gap-2">
+            <span className="flex-1 text-sm text-text-primary truncate">
+              {cat.name}
+            </span>
+            {cat.isDefault && (
+              <Badge variant="accent">Default</Badge>
+            )}
 
-                {confirmArchiveId === cat._id ? (
-                  <div className="flex gap-1 shrink-0">
-                    <Button variant="secondary" size="xs" onClick={() => setConfirmArchiveId(null)}>
-                      Cancel
-                    </Button>
-                    <Button
-                      size="xs"
-                      className="border border-badge-transfer/30 bg-badge-transfer/20 text-badge-transfer rounded-xl"
-                      onClick={() => confirmArchive(cat._id)}
-                    >
-                      Archive
-                    </Button>
-                  </div>
-                ) : !cat.isDefault && confirmDeleteId === cat._id ? (
-                  <div className="flex gap-1 shrink-0">
-                    <Button variant="secondary" size="xs" onClick={() => setConfirmDeleteId(null)}>
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="xs"
-                      disabled={deletingId === cat._id}
-                      onClick={() => handleDelete(cat._id)}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex gap-1 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setConfirmArchiveId(cat._id)}
-                      title="Archive — hides from pickers"
-                      className="h-8 w-8 hover:text-badge-transfer"
-                    >
-                      <Archive size={15} />
-                    </Button>
-                    {!cat.isDefault && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setConfirmDeleteId(cat._id)}
-                        title="Delete permanently"
-                        className="h-8 w-8 hover:text-negative"
-                      >
-                        <Trash2 size={15} />
-                      </Button>
-                    )}
-                  </div>
+            {confirmArchiveId === cat._id ? (
+              <div className="flex gap-1 shrink-0">
+                <Button variant="secondary" size="xs" onClick={() => setConfirmArchiveId(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  size="xs"
+                  className="border border-badge-transfer/30 bg-badge-transfer/20 text-badge-transfer rounded-xl"
+                  onClick={() => confirmArchive(cat._id)}
+                >
+                  Archive
+                </Button>
+              </div>
+            ) : !cat.isDefault && confirmDeleteId === cat._id ? (
+              <div className="flex gap-1 shrink-0">
+                <Button variant="secondary" size="xs" onClick={() => setConfirmDeleteId(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="xs"
+                  disabled={deletingId === cat._id}
+                  onClick={() => handleDelete(cat._id)}
+                >
+                  Delete
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-1 shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setConfirmArchiveId(cat._id)}
+                  title="Archive — hides from pickers"
+                  className="h-8 w-8 hover:text-badge-transfer"
+                >
+                  <Archive size={15} />
+                </Button>
+                {!cat.isDefault && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setConfirmDeleteId(cat._id)}
+                    title="Delete permanently"
+                    className="h-8 w-8 hover:text-negative"
+                  >
+                    <Trash2 size={15} />
+                  </Button>
                 )}
-              </ListItem>
-            ))}
-          </ListContainer>
+              </div>
+            )}
+          </ListItem>
+        ))}
+      </ListContainer>
+    );
+  }
+
+  function TabPanel({
+    tab,
+    expenseCats,
+    incomeCats,
+  }: {
+    tab: Tab;
+    expenseCats: CategoryData[];
+    incomeCats?: CategoryData[];
+  }) {
+    const showIncomeSplit = incomeCats !== undefined;
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="space-y-2">
+          {showIncomeSplit && (
+            <p className="px-1 text-xs font-semibold text-text-muted uppercase tracking-wide">
+              Expenses
+            </p>
+          )}
+          <CategoryList cats={expenseCats} emptyLabel={`No ${tab} expense categories. Add one below.`} />
+        </div>
+
+        {showIncomeSplit && (
+          <div className="space-y-2">
+            <p className="px-1 text-xs font-semibold text-text-muted uppercase tracking-wide">
+              Income
+            </p>
+            <CategoryList cats={incomeCats!} emptyLabel={`No ${tab} income categories. Add one below.`} />
+          </div>
         )}
 
         <Card className="p-4 space-y-3">
           <p className="text-sm font-semibold text-text-muted uppercase tracking-wide">
-            Add {activeTab} category
+            Add {tab} category
           </p>
+          {showIncomeSplit && (
+            <div className="flex gap-2">
+              <Toggle pressed={addKind === "expense"} onPressedChange={() => setAddKind("expense")}>
+                Expense
+              </Toggle>
+              <Toggle pressed={addKind === "income"} onPressedChange={() => setAddKind("income")}>
+                Income
+              </Toggle>
+            </div>
+          )}
           <div className="flex gap-2">
             <Input
               type="text"
@@ -188,12 +242,12 @@ export default function CategoriesPage() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  form.handleSubmit(() => handleAdd(activeTab))();
+                  form.handleSubmit(() => handleAdd(tab, showIncomeSplit ? addKind : "expense"))();
                 }
               }}
             />
             <Button
-              onClick={form.handleSubmit(() => handleAdd(activeTab))}
+              onClick={form.handleSubmit(() => handleAdd(tab, showIncomeSplit ? addKind : "expense"))}
               disabled={isAdding}
               size="sm"
               className="w-auto"
@@ -202,7 +256,7 @@ export default function CategoriesPage() {
             </Button>
           </div>
         </Card>
-      </>
+      </div>
     );
   }
 
@@ -223,6 +277,7 @@ export default function CategoriesPage() {
           value={activeTab}
           onValueChange={(v) => {
             setActiveTab(v as Tab);
+            setAddKind("expense");
             form.reset();
           }}
           className="flex flex-col gap-4"
@@ -232,14 +287,14 @@ export default function CategoriesPage() {
             <TabsTrigger value="business">Business</TabsTrigger>
             <TabsTrigger value="rental">Rental</TabsTrigger>
           </TabsList>
-          <TabsContent value="personal" className="flex flex-col gap-4">
-            <CategoryList cats={personalCategories} />
+          <TabsContent value="personal">
+            <TabPanel tab="personal" expenseCats={personalExpenseCategories} incomeCats={personalIncomeCategories} />
           </TabsContent>
-          <TabsContent value="business" className="flex flex-col gap-4">
-            <CategoryList cats={businessCategories} />
+          <TabsContent value="business">
+            <TabPanel tab="business" expenseCats={businessExpenseCategories} incomeCats={businessIncomeCategories} />
           </TabsContent>
-          <TabsContent value="rental" className="flex flex-col gap-4">
-            <CategoryList cats={rentalCategories} />
+          <TabsContent value="rental">
+            <TabPanel tab="rental" expenseCats={rentalCategories} />
           </TabsContent>
         </Tabs>
       </div>

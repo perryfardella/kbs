@@ -10,7 +10,9 @@ const transactionTypeValidator = v.union(
   v.literal("transfer_to_business"),
   v.literal("dividend_payment"),
   v.literal("rental_income"),
-  v.literal("rental_expense")
+  v.literal("rental_expense"),
+  v.literal("business_income"),
+  v.literal("personal_income")
 );
 
 export default defineSchema({
@@ -40,6 +42,7 @@ export default defineSchema({
       v.literal("both"),
       v.literal("rental")
     ),
+    isIncome: v.optional(v.boolean()), // true = income category; absent/false = expense category
     isDefault: v.boolean(),
     isArchived: v.boolean(),
   })

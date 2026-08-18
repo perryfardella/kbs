@@ -103,6 +103,10 @@ function addLoanSheet(workbook: ExcelJS.Workbook, loan: LoanLedgerRange) {
   styleHeader(worksheet);
 }
 
+function byDate<T extends { date: string }>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export async function buildReportWorkbook({
   expenseBreakdown,
   rentalBreakdown,
@@ -113,8 +117,8 @@ export async function buildReportWorkbook({
   loanLedger: LoanLedgerRange;
 }): Promise<Blob> {
   const workbook = new ExcelJS.Workbook();
-  addExpenseSheet(workbook, "Personal", expenseBreakdown.personal.rows);
-  addExpenseSheet(workbook, "Business", expenseBreakdown.business.rows);
+  addExpenseSheet(workbook, "Personal", byDate([...expenseBreakdown.personalIncome.rows, ...expenseBreakdown.personal.rows]));
+  addExpenseSheet(workbook, "Business", byDate([...expenseBreakdown.businessIncome.rows, ...expenseBreakdown.business.rows]));
   addRentalSheet(workbook, rentalBreakdown.rows);
   addLoanSheet(workbook, loanLedger);
 

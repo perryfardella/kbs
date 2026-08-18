@@ -12,7 +12,9 @@ const transactionTypeValidator = v.union(
   v.literal("transfer_to_business"),
   v.literal("dividend_payment"),
   v.literal("rental_income"),
-  v.literal("rental_expense")
+  v.literal("rental_expense"),
+  v.literal("business_income"),
+  v.literal("personal_income")
 );
 
 type TransactionType =
@@ -24,7 +26,9 @@ type TransactionType =
   | "transfer_to_business"
   | "dividend_payment"
   | "rental_income"
-  | "rental_expense";
+  | "rental_expense"
+  | "business_income"
+  | "personal_income";
 
 function computeDelta(type: TransactionType, amount: number): number {
   switch (type) {
@@ -265,6 +269,8 @@ export const getSummary = query({
       .collect();
     let totalPersonalExpenses = 0;
     let totalBusinessExpenses = 0;
+    let totalPersonalIncome = 0;
+    let totalBusinessIncome = 0;
     let totalTransferToPersonal = 0;
     let totalTransferToBusiness = 0;
     let netShareholderLoanChange = 0;
@@ -279,6 +285,12 @@ export const getSummary = query({
         case "business_expense_personal_pay":
           totalBusinessExpenses += tx.amount;
           break;
+        case "personal_income":
+          totalPersonalIncome += tx.amount;
+          break;
+        case "business_income":
+          totalBusinessIncome += tx.amount;
+          break;
         case "transfer_to_personal":
           totalTransferToPersonal += tx.amount;
           break;
@@ -290,6 +302,10 @@ export const getSummary = query({
     return {
       totalPersonalExpenses,
       totalBusinessExpenses,
+      totalPersonalIncome,
+      totalBusinessIncome,
+      netPersonal: totalPersonalIncome - totalPersonalExpenses,
+      netBusiness: totalBusinessIncome - totalBusinessExpenses,
       totalTransferToPersonal,
       totalTransferToBusiness,
       netShareholderLoanChange,
@@ -302,6 +318,8 @@ export const getSummary = query({
 // buckets shown on Reports (matches the switch in getSummary above).
 const PERSONAL_TYPES = new Set(["personal_expense", "personal_expense_business_pay"]);
 const BUSINESS_TYPES = new Set(["business_expense", "business_expense_personal_pay"]);
+const PERSONAL_INCOME_TYPES = new Set(["personal_income"]);
+const BUSINESS_INCOME_TYPES = new Set(["business_income"]);
 
 async function joinCategoryNames<T extends { categoryId?: Id<"categories"> }>(
   ctx: QueryCtx,
@@ -340,13 +358,19 @@ export const getExpenseBreakdown = query({
 
     const personalTxns = txns.filter((tx) => PERSONAL_TYPES.has(tx.type));
     const businessTxns = txns.filter((tx) => BUSINESS_TYPES.has(tx.type));
+    const personalIncomeTxns = txns.filter((tx) => PERSONAL_INCOME_TYPES.has(tx.type));
+    const businessIncomeTxns = txns.filter((tx) => BUSINESS_INCOME_TYPES.has(tx.type));
 
     const personalRows = await joinCategoryNames(ctx, identity.tokenIdentifier, personalTxns);
     const businessRows = await joinCategoryNames(ctx, identity.tokenIdentifier, businessTxns);
+    const personalIncomeRows = await joinCategoryNames(ctx, identity.tokenIdentifier, personalIncomeTxns);
+    const businessIncomeRows = await joinCategoryNames(ctx, identity.tokenIdentifier, businessIncomeTxns);
 
     return {
       personal: summarizeByCategory(personalRows),
       business: summarizeByCategory(businessRows),
+      personalIncome: summarizeByCategory(personalIncomeRows),
+      businessIncome: summarizeByCategory(businessIncomeRows),
     };
   },
 });

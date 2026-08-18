@@ -8,4 +8,6 @@ export const TYPE_LABELS: Record<string, string> = {
   dividend_payment: "Dividend / Repayment",
   rental_income: "Rental Income",
   rental_expense: "Rental Expense",
+  personal_income: "Personal Income",
+  business_income: "Business Income",
 };
