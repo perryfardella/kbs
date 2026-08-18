@@ -84,6 +84,7 @@ function getLoanImpact(type: TransactionType, amount: number): { text: string; p
     case "transfer_to_business":
       return { text: `This will increase the corp's debt to you by ${fmt}`, positive: true };
     case "transfer_to_personal":
+    case "dividend_payment":
       return { text: `This will decrease the corp's debt to you by ${fmt}`, positive: false };
     default:
       return null;
