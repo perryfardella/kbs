@@ -250,9 +250,12 @@ export default function ReportsPage() {
               <ListContainer>
                 {Array.from({ length: 3 }).map((_, i) => (
                   <div key={i} className="flex items-center gap-3 px-4 py-3">
-                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-12" />
                     <Skeleton className="h-4 flex-1" />
-                    <Skeleton className="h-4 w-16" />
+                    <div className="flex flex-col items-end gap-1">
+                      <Skeleton className="h-4 w-16" />
+                      <Skeleton className="h-3 w-12" />
+                    </div>
                   </div>
                 ))}
               </ListContainer>

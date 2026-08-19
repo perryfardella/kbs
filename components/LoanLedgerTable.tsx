@@ -11,11 +11,11 @@ function formatCAD(amount: number): string {
 
 function formatShortDate(dateStr: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-CA", {
+  const monthDay = new Date(y, m - 1, d).toLocaleDateString("en-CA", {
     month: "short",
     day: "numeric",
-    year: "numeric",
   });
+  return `${monthDay} '${String(y).slice(2)}`;
 }
 
 export interface LoanLedgerEntry {
@@ -45,62 +45,50 @@ export function LoanLedgerTable({
   }
 
   return (
-    <>
-      <div className="grid grid-cols-[1fr_2fr_1fr_1fr_1fr] gap-2 px-4 py-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-        <span>Date</span>
-        <span>Description</span>
-        <span className="text-right">Amount</span>
-        <span className="text-right">Impact</span>
-        <span className="text-right">Balance</span>
-      </div>
-      <ListContainer>
-        {openingBalance !== undefined && (
-          <div className="grid grid-cols-[1fr_2fr_1fr_1fr_1fr] gap-2 px-4 py-3 min-h-[44px] items-center bg-border/30">
-            <span className="text-xs text-text-muted font-mono truncate col-span-3">
-              Opening Balance
-            </span>
-            <span />
-            <span
-              className={`font-mono text-xs text-right font-semibold ${openingBalance >= 0 ? "text-positive" : "text-negative"}`}
-            >
-              {openingBalance >= 0 ? "+" : "-"}
-              {formatCAD(openingBalance)}
-            </span>
-          </div>
-        )}
-        {entries.map((tx) => {
-          const deltaPositive = tx.shareholderLoanDelta > 0;
-          const balancePositive = tx.runningBalance >= 0;
-          return (
-            <div
-              key={tx._id}
-              className="grid grid-cols-[1fr_2fr_1fr_1fr_1fr] gap-2 px-4 py-3 min-h-[44px] items-center"
-            >
-              <span className="text-xs text-text-muted font-mono truncate">
-                {formatShortDate(tx.date)}
-              </span>
-              <span className="text-sm text-text-primary truncate">
+    <ListContainer>
+      {openingBalance !== undefined && (
+        <div className="flex items-center gap-3 px-4 py-3 min-h-[44px] bg-border/30">
+          <span className="flex-1 min-w-0 truncate text-xs text-text-muted font-mono">
+            Opening Balance
+          </span>
+          <span
+            className={`shrink-0 font-mono text-sm text-right font-semibold ${openingBalance >= 0 ? "text-positive" : "text-negative"}`}
+          >
+            {openingBalance >= 0 ? "+" : "-"}
+            {formatCAD(openingBalance)}
+          </span>
+        </div>
+      )}
+      {entries.map((tx) => {
+        const deltaPositive = tx.shareholderLoanDelta > 0;
+        const balancePositive = tx.runningBalance >= 0;
+        return (
+          <div key={tx._id} className="flex flex-col gap-1 px-4 py-3 min-h-[44px] justify-center">
+            <div className="flex items-baseline gap-2">
+              <span className="flex-1 min-w-0 truncate text-sm text-text-primary">
                 {tx.description}
               </span>
-              <span className="font-mono text-xs text-text-primary text-right">
-                {formatCAD(tx.amount)}
-              </span>
               <span
-                className={`font-mono text-xs text-right font-semibold ${deltaPositive ? "text-positive" : "text-negative"}`}
+                className={`shrink-0 font-mono text-sm font-semibold ${deltaPositive ? "text-positive" : "text-negative"}`}
               >
                 {deltaPositive ? "+" : "-"}
                 {formatCAD(tx.shareholderLoanDelta)}
               </span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="flex-1 min-w-0 text-xs text-text-muted font-mono">
+                {formatShortDate(tx.date)}
+              </span>
               <span
-                className={`font-mono text-xs text-right font-semibold ${balancePositive ? "text-positive" : "text-negative"}`}
+                className={`shrink-0 font-mono text-xs opacity-75 ${balancePositive ? "text-positive" : "text-negative"}`}
               >
-                {balancePositive ? "+" : "-"}
+                bal {balancePositive ? "+" : "-"}
                 {formatCAD(tx.runningBalance)}
               </span>
             </div>
-          );
-        })}
-      </ListContainer>
-    </>
+          </div>
+        );
+      })}
+    </ListContainer>
   );
 }

@@ -134,7 +134,7 @@ export default function DashboardPage() {
             <p
               className={`font-mono text-4xl font-semibold tracking-tight ${isPositive ? "text-positive" : "text-negative"}`}
             >
-              {isPositive ? "+" : "-"}
+              {isPositive && "+"}
               {formatCAD(balance)}
             </p>
           )}
