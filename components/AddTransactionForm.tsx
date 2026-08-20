@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -402,6 +403,13 @@ export function AddTransactionForm({
                     </FormLabel>
                     {categories === undefined ? (
                       <Skeleton className="h-12 w-full rounded-2xl" />
+                    ) : filteredCategories.length === 0 ? (
+                      <p className="text-xs text-text-muted">
+                        No {kind} categories yet.{" "}
+                        <Link href="/settings/categories" className="underline">
+                          Add one in Settings.
+                        </Link>
+                      </p>
                     ) : (
                       <Select
                         value={field.value ?? ""}
