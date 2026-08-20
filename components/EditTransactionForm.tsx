@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -338,18 +339,27 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
                   render={({ field, fieldState }) => (
                     <FormItem>
                       <FormLabel variant="muted">Category</FormLabel>
-                      <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                        <SelectTrigger className={fieldState.invalid ? "border-negative" : ""}>
-                          <SelectValue placeholder="Select a category…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {filteredCategories.map((cat) => (
-                            <SelectItem key={cat._id} value={cat._id}>
-                              {cat.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {filteredCategories.length === 0 ? (
+                        <p className="text-xs text-text-muted">
+                          No {kind} categories yet.{" "}
+                          <Link href="/settings/categories" className="underline">
+                            Add one in Settings.
+                          </Link>
+                        </p>
+                      ) : (
+                        <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                          <SelectTrigger className={fieldState.invalid ? "border-negative" : ""}>
+                            <SelectValue placeholder="Select a category…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {filteredCategories.map((cat) => (
+                              <SelectItem key={cat._id} value={cat._id}>
+                                {cat.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
