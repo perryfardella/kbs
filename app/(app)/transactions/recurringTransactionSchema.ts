@@ -1,38 +1,13 @@
 import { z } from "zod";
 
-type CategoryRealm = "personal" | "business" | "rental" | null;
-
-const EXPENSE_TYPE_REALMS: Record<string, CategoryRealm> = {
-  personal_expense: "personal",
-  business_expense: "business",
-  business_expense_personal_pay: "business",
-  personal_expense_business_pay: "personal",
-  transfer_to_personal: null,
-  transfer_to_business: null,
-  dividend_payment: null,
-  rental_income: null,
-  rental_expense: "rental",
-  business_income: "business",
-  personal_income: "personal",
-};
-
-const RENTAL_TYPES = ["rental_income", "rental_expense"];
-
 export const recurringTransactionSchema = z
   .object({
-    type: z.enum([
-      "personal_expense",
-      "business_expense",
-      "business_expense_personal_pay",
-      "personal_expense_business_pay",
-      "transfer_to_personal",
-      "transfer_to_business",
-      "dividend_payment",
-      "rental_income",
-      "rental_expense",
-      "business_income",
-      "personal_income",
-    ]),
+    kind: z.enum(["income", "expense", "transfer"]),
+    realm: z.enum(["personal", "business", "rental"]).optional(),
+    account: z.enum(["personal", "business"]).optional(),
+    from: z.enum(["personal", "business"]).optional(),
+    to: z.enum(["personal", "business"]).optional(),
+    purpose: z.literal("dividend").optional(),
     amount: z
       .string()
       .min(1, "Enter a valid amount")
@@ -50,21 +25,30 @@ export const recurringTransactionSchema = z
     endDate: z.string().optional(),
   })
   .superRefine((data, ctx) => {
-    const realm = EXPENSE_TYPE_REALMS[data.type];
-    if (realm !== null && !data.categoryId) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Select a category",
-        path: ["categoryId"],
-      });
+    if (data.kind === "transfer") {
+      if (!data.from || !data.to) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Select a direction", path: ["from"] });
+      }
+    } else if (!data.realm) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Select who this is for", path: ["realm"] });
+    } else {
+      const needsCategory = !(data.kind === "income" && data.realm === "rental");
+      if (needsCategory && !data.categoryId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Select a category",
+          path: ["categoryId"],
+        });
+      }
+      if (data.realm === "rental" && !data.propertyId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Select a property",
+          path: ["propertyId"],
+        });
+      }
     }
-    if (RENTAL_TYPES.includes(data.type) && !data.propertyId) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Select a property",
-        path: ["propertyId"],
-      });
-    }
+
     if ((data.frequency === "weekly") && data.anchorDay === undefined) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

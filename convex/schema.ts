@@ -15,6 +15,18 @@ const transactionTypeValidator = v.union(
   v.literal("personal_income")
 );
 
+// Compositional replacement for transactionTypeValidator — see lib/transactionFields.ts
+// and docs/adr/0001-compositional-transaction-model.md. `type` above is kept (now optional)
+// until the migration to these fields is complete and verified on prod.
+const kindValidator = v.union(v.literal("income"), v.literal("expense"), v.literal("transfer"));
+const realmValidator = v.union(
+  v.literal("personal"),
+  v.literal("business"),
+  v.literal("rental")
+);
+const sideValidator = v.union(v.literal("personal"), v.literal("business"));
+const purposeValidator = v.literal("dividend");
+
 export default defineSchema({
   properties: defineTable({
     userId: v.string(), // tokenIdentifier from Clerk
@@ -55,7 +67,13 @@ export default defineSchema({
     amount: v.number(),
     description: v.string(),
     notes: v.optional(v.string()),
-    type: transactionTypeValidator,
+    type: v.optional(transactionTypeValidator), // deprecated — superseded by kind/realm/account/from/to/purpose below, kept until the migration is complete and verified on prod
+    kind: v.optional(kindValidator),
+    realm: v.optional(realmValidator), // income/expense only
+    account: v.optional(sideValidator), // income/expense only, ignored when realm === "rental"
+    from: v.optional(sideValidator), // transfer only
+    to: v.optional(sideValidator), // transfer only
+    purpose: v.optional(purposeValidator), // transfer only
     categoryId: v.optional(v.id("categories")),
     propertyId: v.optional(v.id("properties")),
     receiptStorageId: v.optional(v.id("_storage")), // deprecated, superseded by receiptStorageIds — unused, kept to avoid a data migration
@@ -76,7 +94,13 @@ export default defineSchema({
     userId: v.string(), // tokenIdentifier from Clerk
     description: v.string(),
     amount: v.number(),
-    type: transactionTypeValidator,
+    type: v.optional(transactionTypeValidator), // deprecated — see transactions table above
+    kind: v.optional(kindValidator),
+    realm: v.optional(realmValidator),
+    account: v.optional(sideValidator),
+    from: v.optional(sideValidator),
+    to: v.optional(sideValidator),
+    purpose: v.optional(purposeValidator),
     categoryId: v.optional(v.id("categories")),
     propertyId: v.optional(v.id("properties")),
     notes: v.optional(v.string()),

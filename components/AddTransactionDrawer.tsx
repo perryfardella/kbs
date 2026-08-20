@@ -11,19 +11,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { AddTransactionForm } from "@/components/AddTransactionForm";
-
-type TransactionTypeParam =
-  | "personal_expense"
-  | "business_expense"
-  | "business_expense_personal_pay"
-  | "personal_expense_business_pay"
-  | "transfer_to_personal"
-  | "transfer_to_business"
-  | "dividend_payment"
-  | "rental_income"
-  | "rental_expense"
-  | "business_income"
-  | "personal_income";
+import { KINDS, REALMS, type Kind, type Realm } from "@/lib/transactionFields";
 
 function AddTransactionDrawerInner() {
   const searchParams = useSearchParams();
@@ -31,7 +19,10 @@ function AddTransactionDrawerInner() {
   const isOpen = searchParams.get("add") === "true";
   const returnTo = searchParams.get("returnTo") ?? "/transactions";
   const defaultPropertyId = searchParams.get("property") ?? undefined;
-  const defaultType = (searchParams.get("type") as TransactionTypeParam | null) ?? undefined;
+  const kindParam = searchParams.get("kind");
+  const realmParam = searchParams.get("realm");
+  const defaultKind = (KINDS as readonly string[]).includes(kindParam ?? "") ? (kindParam as Kind) : undefined;
+  const defaultRealm = (REALMS as readonly string[]).includes(realmParam ?? "") ? (realmParam as Realm) : undefined;
 
   function handleClose() {
     router.replace(returnTo);
@@ -53,7 +44,8 @@ function AddTransactionDrawerInner() {
             isOpen={isOpen}
             onSuccess={handleClose}
             defaultPropertyId={defaultPropertyId}
-            defaultType={defaultType}
+            defaultKind={defaultKind}
+            defaultRealm={defaultRealm}
           />
         </DrawerBody>
       </DrawerContent>

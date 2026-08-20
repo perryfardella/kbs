@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { Info } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -32,47 +31,7 @@ import {
   recurringTransactionSchema,
   type RecurringTransactionFormValues,
 } from "@/app/(app)/transactions/recurringTransactionSchema";
-
-type TransactionType =
-  | "personal_expense"
-  | "business_expense"
-  | "business_expense_personal_pay"
-  | "personal_expense_business_pay"
-  | "transfer_to_personal"
-  | "transfer_to_business"
-  | "dividend_payment"
-  | "rental_income"
-  | "rental_expense"
-  | "business_income"
-  | "personal_income";
-
-type CategoryRealm = "personal" | "business" | "rental" | null;
-
-const TYPE_OPTIONS: {
-  value: TransactionType;
-  label: string;
-  tooltip?: string;
-  categoryRealm: CategoryRealm;
-  isIncome?: boolean;
-}[] = [
-  { value: "personal_expense",              label: "Personal Expense",                categoryRealm: "personal" },
-  { value: "business_expense",              label: "Business Expense",                categoryRealm: "business" },
-  { value: "personal_income",               label: "Personal Income",                 tooltip: "Money you earn personally, outside the corp (e.g. another job, freelance work)", categoryRealm: "personal", isIncome: true },
-  { value: "business_income",               label: "Business Income",                 tooltip: "Recurring revenue the corp receives for services rendered", categoryRealm: "business", isIncome: true },
-  { value: "business_expense_personal_pay", label: "Biz Expense (Personal Pay)",      tooltip: "I pay a business expense from my own pocket", categoryRealm: "business" },
-  { value: "personal_expense_business_pay", label: "Personal Expense (Business Pay)", tooltip: "I pay a personal expense from the business account", categoryRealm: "personal" },
-  { value: "rental_income",                 label: "Rental Income",                   tooltip: "Recurring rent or income from an investment property", categoryRealm: null },
-  { value: "rental_expense",                label: "Rental Expense",                  tooltip: "A recurring expense for an investment property", categoryRealm: "rental" },
-  { value: "transfer_to_personal",          label: "Corp → Me",                       categoryRealm: null },
-  { value: "transfer_to_business",          label: "Me → Corp",                       categoryRealm: null },
-  { value: "dividend_payment",              label: "Dividend / Repayment",            categoryRealm: null },
-];
-
-// Only rental transactions are tagged to a property, and they require one.
-const PROPERTY_TYPES = new Set<TransactionType>([
-  "rental_income",
-  "rental_expense",
-]);
+import { TransactionKindFields } from "@/components/TransactionKindFields";
 
 const FREQUENCY_OPTIONS = [
   { value: "weekly",   label: "Weekly" },
@@ -115,10 +74,10 @@ export function AddRecurringForm({ isOpen, onSuccess }: AddRecurringFormProps) {
   const properties = useQuery(api.properties.list);
   const createRecurring = useMutation(api.recurringTransactions.create);
 
-  const form = useForm<RecurringTransactionFormValues>({
-    resolver: zodResolver(recurringTransactionSchema),
-    defaultValues: {
-      type: "personal_expense",
+  function defaultValues(): RecurringTransactionFormValues {
+    return {
+      kind: "expense",
+      realm: "personal",
       amount: "",
       description: "",
       categoryId: "",
@@ -129,44 +88,36 @@ export function AddRecurringForm({ isOpen, onSuccess }: AddRecurringFormProps) {
       anchorDate: undefined,
       startDate: todayString(),
       endDate: "",
-    },
+    };
+  }
+
+  const form = useForm<RecurringTransactionFormValues>({
+    resolver: zodResolver(recurringTransactionSchema),
+    defaultValues: defaultValues(),
   });
 
   useEffect(() => {
     if (!isOpen) return;
     setSaving(false);
-    form.reset({
-      type: "personal_expense",
-      amount: "",
-      description: "",
-      categoryId: "",
-      propertyId: "",
-      notes: "",
-      frequency: "monthly",
-      anchorDay: undefined,
-      anchorDate: undefined,
-      startDate: todayString(),
-      endDate: "",
-    });
+    form.reset(defaultValues());
     const timer = setTimeout(() => form.setFocus("amount"), 300);
     return () => clearTimeout(timer);
   }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const transactionType = form.watch("type");
+  const kind = form.watch("kind");
+  const realm = form.watch("realm");
   const frequency = form.watch("frequency");
   const anchorDay = form.watch("anchorDay");
   const anchorDate = form.watch("anchorDate");
 
-  const selectedOption = TYPE_OPTIONS.find((t) => t.value === transactionType)!;
-  const showCategory = selectedOption.categoryRealm !== null;
-  const showProperty = PROPERTY_TYPES.has(transactionType);
-  const propertyRequired =
-    transactionType === "rental_income" || transactionType === "rental_expense";
+  // Mirrors categoryRealmFor: no category for transfers or (uncategorized) rental income.
+  const showCategory = kind !== "transfer" && !!realm && !(kind === "income" && realm === "rental");
+  const showProperty = kind !== "transfer" && realm === "rental";
+  const propertyRequired = showProperty;
 
   const filteredCategories = (categories ?? []).filter((cat) => {
-    if (!showCategory) return false;
-    if (Boolean(cat.isIncome) !== Boolean(selectedOption.isIncome)) return false;
-    const realm = selectedOption.categoryRealm;
+    if (!showCategory || !realm) return false;
+    if (Boolean(cat.isIncome) !== (kind === "income")) return false;
     if (realm === "personal") return cat.realm === "personal" || cat.realm === "both";
     if (realm === "business") return cat.realm === "business" || cat.realm === "both";
     if (realm === "rental") return cat.realm === "rental";
@@ -183,7 +134,12 @@ export function AddRecurringForm({ isOpen, onSuccess }: AddRecurringFormProps) {
       await createRecurring({
         description: data.description.trim(),
         amount: parseFloat(data.amount),
-        type: data.type,
+        kind: data.kind,
+        realm: data.realm,
+        account: data.account,
+        from: data.from,
+        to: data.to,
+        purpose: data.purpose,
         categoryId: data.categoryId ? (data.categoryId as Id<"categories">) : undefined,
         propertyId: data.propertyId ? (data.propertyId as Id<"properties">) : undefined,
         notes: data.notes?.trim() || undefined,
@@ -206,40 +162,7 @@ export function AddRecurringForm({ isOpen, onSuccess }: AddRecurringFormProps) {
       <form onSubmit={form.handleSubmit(handleSave)}>
         <div className="px-4 pt-2 space-y-3 pb-2">
           {/* Type Selector */}
-          <FormField
-            control={form.control}
-            name="type"
-            render={({ field }) => (
-              <div className="space-y-2">
-                <label className="block text-xs font-medium text-text-muted uppercase tracking-wide">
-                  Type
-                </label>
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {TYPE_OPTIONS.map((opt) => (
-                    <Toggle
-                      key={opt.value}
-                      pressed={field.value === opt.value}
-                      onPressedChange={() => {
-                        field.onChange(opt.value);
-                        form.setValue("categoryId", "");
-                        if (!PROPERTY_TYPES.has(opt.value)) {
-                          form.setValue("propertyId", "");
-                        }
-                      }}
-                    >
-                      {opt.label}
-                    </Toggle>
-                  ))}
-                </div>
-                {selectedOption.tooltip && (
-                  <p className="flex items-start gap-1.5 text-xs text-text-muted leading-relaxed">
-                    <Info size={12} className="mt-0.5 shrink-0" />
-                    {selectedOption.tooltip}
-                  </p>
-                )}
-              </div>
-            )}
-          />
+          <TransactionKindFields form={form} />
 
           {/* Amount */}
           <FormField

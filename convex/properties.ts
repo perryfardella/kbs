@@ -2,17 +2,13 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
-// Transaction types that count as an expense against a property's P&L.
-// rental_income is the only "income" type; everything else tagged to a
-// property is treated as an expense (rental_expense plus the personal/business
-// expense types, which is how the "corp paid a property bill" case shows up).
-const EXPENSE_TYPES = new Set([
-  "rental_expense",
-  "personal_expense",
-  "business_expense",
-  "personal_expense_business_pay",
-  "business_expense_personal_pay",
-]);
+// Rental income is the only "income" that counts against a property's P&L.
+// Any expense-kind transaction tagged to a property counts as an expense —
+// not just rental_expense, but a personal/business expense billed against a
+// property too (e.g. a business_expense tagged to a rental unit).
+function isRentalIncome(tx: { kind?: string; realm?: string }): boolean {
+  return tx.kind === "income" && tx.realm === "rental";
+}
 
 export const list = query({
   args: {},
@@ -139,8 +135,8 @@ export const getRentalSummary = query({
     let income = 0;
     let expenses = 0;
     for (const tx of txns) {
-      if (tx.type === "rental_income") income += tx.amount;
-      else if (tx.propertyId && EXPENSE_TYPES.has(tx.type)) expenses += tx.amount;
+      if (isRentalIncome(tx)) income += tx.amount;
+      else if (tx.propertyId && tx.kind === "expense") expenses += tx.amount;
     }
     return { income, expenses, net: income - expenses };
   },
@@ -203,8 +199,8 @@ export const getRentalBreakdown = query({
     const rows = [];
 
     for (const tx of txns) {
-      const isIncome = tx.type === "rental_income";
-      const isExpense = tx.propertyId != null && EXPENSE_TYPES.has(tx.type);
+      const isIncome = isRentalIncome(tx);
+      const isExpense = tx.propertyId != null && tx.kind === "expense";
       if (!isIncome && !isExpense) continue;
 
       rows.push({
@@ -270,8 +266,8 @@ export const getPropertySummary = query({
     let income = 0;
     let expenses = 0;
     for (const tx of txns) {
-      if (tx.type === "rental_income") income += tx.amount;
-      else if (EXPENSE_TYPES.has(tx.type)) expenses += tx.amount;
+      if (isRentalIncome(tx)) income += tx.amount;
+      else if (tx.kind === "expense") expenses += tx.amount;
     }
     return {
       income,
