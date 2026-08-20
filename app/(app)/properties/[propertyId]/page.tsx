@@ -16,6 +16,7 @@ import { EditTransactionDrawer } from "@/components/EditTransactionDrawer";
 import { EditPropertyDrawer } from "@/components/EditPropertyDrawer";
 import Link from "next/link";
 import { ChevronLeft, Pencil, Plus } from "lucide-react";
+import { badgeVariantFor, describeTransactionType, tryShapeFromFields } from "@/lib/transactionFields";
 
 function formatCAD(amount: number): string {
   return new Intl.NumberFormat("en-CA", {
@@ -29,20 +30,6 @@ function formatShortDate(dateStr: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString("en-CA", { month: "short", day: "numeric" });
 }
-
-type BadgeVariant = "personal" | "business" | "transfer" | "rental";
-
-const typeConfig: Record<string, { label: string; variant: BadgeVariant }> = {
-  rental_income:                 { label: "Income",            variant: "rental" },
-  rental_expense:                { label: "Expense",           variant: "rental" },
-  personal_expense:              { label: "Personal",          variant: "personal" },
-  business_expense:              { label: "Business",          variant: "business" },
-  business_expense_personal_pay: { label: "Biz (Personal Pay)",variant: "business" },
-  personal_expense_business_pay: { label: "Personal (Biz Pay)",variant: "personal" },
-  transfer_to_personal:          { label: "Corp → Me",         variant: "transfer" },
-  transfer_to_business:          { label: "Me → Corp",         variant: "transfer" },
-  dividend_payment:              { label: "Dividend",          variant: "transfer" },
-};
 
 const now = new Date();
 const year = now.getFullYear();
@@ -135,12 +122,12 @@ function PropertyDetailInner() {
         {/* Add actions */}
         <div className="grid grid-cols-2 gap-3">
           <Button asChild variant="secondary" size="sm">
-            <Link href={`${base}?add=true&type=rental_income&property=${propertyId}&returnTo=${returnTo}`}>
+            <Link href={`${base}?add=true&kind=income&realm=rental&property=${propertyId}&returnTo=${returnTo}`}>
               <Plus size={16} className="mr-1" /> Income
             </Link>
           </Button>
           <Button asChild variant="secondary" size="sm">
-            <Link href={`${base}?add=true&type=rental_expense&property=${propertyId}&returnTo=${returnTo}`}>
+            <Link href={`${base}?add=true&kind=expense&realm=rental&property=${propertyId}&returnTo=${returnTo}`}>
               <Plus size={16} className="mr-1" /> Expense
             </Link>
           </Button>
@@ -170,8 +157,10 @@ function PropertyDetailInner() {
             <>
               <ListContainer>
                 {results.map((tx) => {
-                  const config = typeConfig[tx.type] ?? { label: tx.type, variant: "transfer" as BadgeVariant };
-                  const isIncome = tx.type === "rental_income";
+                  const shape = tryShapeFromFields(tx);
+                  const label = shape ? describeTransactionType(shape) : "";
+                  const variant = shape ? badgeVariantFor(shape) : "transfer";
+                  const isIncome = tx.kind === "income" && tx.realm === "rental";
                   return (
                     <ListItem key={tx._id} asChild>
                       <Link href={`${base}?edit=${tx._id}&returnTo=${returnTo}`}>
@@ -181,7 +170,7 @@ function PropertyDetailInner() {
                         <span className="flex-1 truncate text-sm text-text-primary">
                           {tx.description}
                         </span>
-                        <Badge variant={config.variant}>{config.label}</Badge>
+                        <Badge variant={variant}>{label}</Badge>
                         <span className={`shrink-0 text-right font-mono text-sm min-w-[60px] ${isIncome ? "text-positive" : "text-text-primary"}`}>
                           {isIncome ? "+" : ""}
                           {formatCAD(tx.amount)}

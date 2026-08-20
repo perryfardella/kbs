@@ -2,6 +2,11 @@ import { mutation, query, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import { Id } from "./_generated/dataModel";
+import {
+  computeShareholderLoanDelta,
+  shapeFromFields,
+  toStorageFields,
+} from "../lib/transactionFields";
 
 const transactionTypeValidator = v.union(
   v.literal("personal_expense"),
@@ -17,30 +22,19 @@ const transactionTypeValidator = v.union(
   v.literal("personal_income")
 );
 
-type TransactionType =
-  | "personal_expense"
-  | "business_expense"
-  | "business_expense_personal_pay"
-  | "personal_expense_business_pay"
-  | "transfer_to_personal"
-  | "transfer_to_business"
-  | "dividend_payment"
-  | "rental_income"
-  | "rental_expense"
-  | "business_income"
-  | "personal_income";
+const shapeArgs = {
+  kind: v.union(v.literal("income"), v.literal("expense"), v.literal("transfer")),
+  realm: v.optional(v.union(v.literal("personal"), v.literal("business"), v.literal("rental"))),
+  account: v.optional(v.union(v.literal("personal"), v.literal("business"))),
+  from: v.optional(v.union(v.literal("personal"), v.literal("business"))),
+  to: v.optional(v.union(v.literal("personal"), v.literal("business"))),
+  purpose: v.optional(v.literal("dividend")),
+};
 
-function computeDelta(type: TransactionType, amount: number): number {
-  switch (type) {
-    case "business_expense_personal_pay":
-    case "transfer_to_business":
-      return amount;
-    case "personal_expense_business_pay":
-    case "transfer_to_personal":
-    case "dividend_payment":
-      return -amount;
-    default:
-      return 0;
+// Dividends are a corp → shareholder distribution by definition — never the reverse.
+function assertValidPurpose(fields: { from?: "personal" | "business"; to?: "personal" | "business"; purpose?: "dividend" }) {
+  if (fields.purpose === "dividend" && !(fields.from === "business" && fields.to === "personal")) {
+    throw new Error("A dividend must be a business → personal transfer");
   }
 }
 
@@ -50,7 +44,7 @@ export const create = mutation({
     amount: v.number(),
     description: v.string(),
     notes: v.optional(v.string()),
-    type: transactionTypeValidator,
+    ...shapeArgs,
     categoryId: v.optional(v.id("categories")),
     propertyId: v.optional(v.id("properties")),
     receiptStorageIds: v.optional(v.array(v.id("_storage"))),
@@ -58,14 +52,16 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthenticated");
-    const shareholderLoanDelta = computeDelta(args.type, args.amount);
+    assertValidPurpose(args);
+    const shape = shapeFromFields(args);
+    const shareholderLoanDelta = computeShareholderLoanDelta(shape, args.amount);
     return await ctx.db.insert("transactions", {
       userId: identity.tokenIdentifier,
       date: args.date,
       amount: args.amount,
       description: args.description,
       notes: args.notes,
-      type: args.type,
+      ...toStorageFields(shape),
       categoryId: args.categoryId,
       propertyId: args.propertyId,
       receiptStorageIds: args.receiptStorageIds,
@@ -81,7 +77,7 @@ export const update = mutation({
     amount: v.number(),
     description: v.string(),
     notes: v.optional(v.string()),
-    type: transactionTypeValidator,
+    ...shapeArgs,
     categoryId: v.optional(v.id("categories")),
     propertyId: v.optional(v.id("properties")),
     receiptStorageIds: v.optional(v.array(v.id("_storage"))),
@@ -92,13 +88,15 @@ export const update = mutation({
     const tx = await ctx.db.get(args.transactionId);
     if (!tx) throw new Error("Transaction not found");
     if (tx.userId !== identity.tokenIdentifier) throw new Error("Unauthorized");
-    const shareholderLoanDelta = computeDelta(args.type, args.amount);
+    assertValidPurpose(args);
+    const shape = shapeFromFields(args);
+    const shareholderLoanDelta = computeShareholderLoanDelta(shape, args.amount);
     await ctx.db.patch(args.transactionId, {
       date: args.date,
       amount: args.amount,
       description: args.description,
       notes: args.notes,
-      type: args.type,
+      ...toStorageFields(shape),
       categoryId: args.categoryId,
       propertyId: args.propertyId,
       receiptStorageIds: args.receiptStorageIds,
@@ -276,27 +274,18 @@ export const getSummary = query({
     let netShareholderLoanChange = 0;
     for (const tx of txns) {
       netShareholderLoanChange += tx.shareholderLoanDelta;
-      switch (tx.type) {
-        case "personal_expense":
-        case "personal_expense_business_pay":
-          totalPersonalExpenses += tx.amount;
-          break;
-        case "business_expense":
-        case "business_expense_personal_pay":
-          totalBusinessExpenses += tx.amount;
-          break;
-        case "personal_income":
-          totalPersonalIncome += tx.amount;
-          break;
-        case "business_income":
-          totalBusinessIncome += tx.amount;
-          break;
-        case "transfer_to_personal":
-          totalTransferToPersonal += tx.amount;
-          break;
-        case "transfer_to_business":
-          totalTransferToBusiness += tx.amount;
-          break;
+      if (tx.kind === "expense") {
+        if (tx.realm === "personal") totalPersonalExpenses += tx.amount;
+        else if (tx.realm === "business") totalBusinessExpenses += tx.amount;
+      } else if (tx.kind === "income") {
+        if (tx.realm === "personal") totalPersonalIncome += tx.amount;
+        else if (tx.realm === "business") totalBusinessIncome += tx.amount;
+      } else if (tx.kind === "transfer") {
+        // A dividend is a business→personal transfer that also counts as
+        // personal income (its whole point, per the domain model).
+        if (tx.purpose === "dividend") totalPersonalIncome += tx.amount;
+        else if (tx.to === "personal") totalTransferToPersonal += tx.amount;
+        else if (tx.to === "business") totalTransferToBusiness += tx.amount;
       }
     }
     return {
@@ -313,13 +302,6 @@ export const getSummary = query({
     };
   },
 });
-
-// Types whose amount rolls up into the "Personal" vs "Business" expense
-// buckets shown on Reports (matches the switch in getSummary above).
-const PERSONAL_TYPES = new Set(["personal_expense", "personal_expense_business_pay"]);
-const BUSINESS_TYPES = new Set(["business_expense", "business_expense_personal_pay"]);
-const PERSONAL_INCOME_TYPES = new Set(["personal_income"]);
-const BUSINESS_INCOME_TYPES = new Set(["business_income"]);
 
 async function joinCategoryNames<T extends { categoryId?: Id<"categories"> }>(
   ctx: QueryCtx,
@@ -356,14 +338,21 @@ export const getExpenseBreakdown = query({
       .order("asc")
       .take(2000);
 
-    const personalTxns = txns.filter((tx) => PERSONAL_TYPES.has(tx.type));
-    const businessTxns = txns.filter((tx) => BUSINESS_TYPES.has(tx.type));
-    const personalIncomeTxns = txns.filter((tx) => PERSONAL_INCOME_TYPES.has(tx.type));
-    const businessIncomeTxns = txns.filter((tx) => BUSINESS_INCOME_TYPES.has(tx.type));
+    const personalTxns = txns.filter((tx) => tx.kind === "expense" && tx.realm === "personal");
+    const businessTxns = txns.filter((tx) => tx.kind === "expense" && tx.realm === "business");
+    const personalIncomeTxns = txns.filter(
+      (tx) => (tx.kind === "income" && tx.realm === "personal") || (tx.kind === "transfer" && tx.purpose === "dividend")
+    );
+    const businessIncomeTxns = txns.filter((tx) => tx.kind === "income" && tx.realm === "business");
 
     const personalRows = await joinCategoryNames(ctx, identity.tokenIdentifier, personalTxns);
     const businessRows = await joinCategoryNames(ctx, identity.tokenIdentifier, businessTxns);
-    const personalIncomeRows = await joinCategoryNames(ctx, identity.tokenIdentifier, personalIncomeTxns);
+    // Dividends have no categoryId (they're transfers, not categorized expenses/income) —
+    // give them a synthetic category label so they group into their own "Dividend Income"
+    // row in the breakdown rather than falling into "Uncategorized".
+    const personalIncomeRows = (await joinCategoryNames(ctx, identity.tokenIdentifier, personalIncomeTxns)).map((tx) =>
+      tx.purpose === "dividend" ? { ...tx, categoryName: "Dividend Income" } : tx
+    );
     const businessIncomeRows = await joinCategoryNames(ctx, identity.tokenIdentifier, businessIncomeTxns);
 
     return {
@@ -382,7 +371,7 @@ function summarizeByCategory<
   let total = 0;
   for (const row of rows) {
     total += row.amount;
-    const key = row.categoryId ?? "uncategorized";
+    const key = row.categoryId ?? row.categoryName ?? "uncategorized";
     const name = row.categoryName ?? "Uncategorized";
     const existing = byCategoryMap.get(key);
     if (existing) {

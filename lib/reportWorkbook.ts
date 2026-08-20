@@ -1,7 +1,7 @@
 import ExcelJS from "exceljs";
 import { FunctionReturnType } from "convex/server";
 import { api } from "@/convex/_generated/api";
-import { TYPE_LABELS } from "@/lib/transactionLabels";
+import { describeTransactionType, shapeFromFields, type LooseShapeFields } from "@/lib/transactionFields";
 
 type ExpenseBreakdown = NonNullable<FunctionReturnType<typeof api.transactions.getExpenseBreakdown>>;
 type RentalBreakdown = NonNullable<FunctionReturnType<typeof api.properties.getRentalBreakdown>>;
@@ -9,8 +9,12 @@ type LoanLedgerRange = NonNullable<FunctionReturnType<typeof api.transactions.ge
 
 const CURRENCY_FORMAT = '"$"#,##0.00;[Red]("$"#,##0.00)';
 
-function typeLabel(type: string): string {
-  return TYPE_LABELS[type] ?? type;
+function typeLabel(row: LooseShapeFields): string {
+  try {
+    return describeTransactionType(shapeFromFields(row));
+  } catch {
+    return "";
+  }
 }
 
 function styleHeader(worksheet: ExcelJS.Worksheet) {
@@ -37,7 +41,7 @@ function addExpenseSheet(
     worksheet.addRow({
       date: row.date,
       description: row.description,
-      type: typeLabel(row.type),
+      type: typeLabel(row),
       category: row.categoryName ?? "",
       amount: row.amount,
       notes: row.notes ?? "",
@@ -62,7 +66,7 @@ function addRentalSheet(workbook: ExcelJS.Workbook, rows: RentalBreakdown["rows"
     worksheet.addRow({
       date: row.date,
       description: row.description,
-      type: typeLabel(row.type),
+      type: typeLabel(row),
       property: row.propertyName ?? "",
       category: row.categoryName ?? "",
       amount: row.amount,
@@ -94,7 +98,7 @@ function addLoanSheet(workbook: ExcelJS.Workbook, loan: LoanLedgerRange) {
     worksheet.addRow({
       date: entry.date,
       description: entry.description,
-      type: typeLabel(entry.type),
+      type: typeLabel(entry),
       amount: entry.amount,
       delta: entry.shareholderLoanDelta,
       balance: entry.runningBalance,

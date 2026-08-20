@@ -2,52 +2,32 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import { format, subDays } from "date-fns";
 import { computeOccurrences } from "../lib/recurrence";
 import { v } from "convex/values";
+import {
+  computeShareholderLoanDelta,
+  shapeFromFields,
+  toStorageFields,
+} from "../lib/transactionFields";
 
-const transactionTypeValidator = v.union(
-  v.literal("personal_expense"),
-  v.literal("business_expense"),
-  v.literal("business_expense_personal_pay"),
-  v.literal("personal_expense_business_pay"),
-  v.literal("transfer_to_personal"),
-  v.literal("transfer_to_business"),
-  v.literal("dividend_payment"),
-  v.literal("rental_income"),
-  v.literal("rental_expense"),
-  v.literal("business_income"),
-  v.literal("personal_income")
-);
+const shapeArgs = {
+  kind: v.union(v.literal("income"), v.literal("expense"), v.literal("transfer")),
+  realm: v.optional(v.union(v.literal("personal"), v.literal("business"), v.literal("rental"))),
+  account: v.optional(v.union(v.literal("personal"), v.literal("business"))),
+  from: v.optional(v.union(v.literal("personal"), v.literal("business"))),
+  to: v.optional(v.union(v.literal("personal"), v.literal("business"))),
+  purpose: v.optional(v.literal("dividend")),
+};
 
-type TransactionType =
-  | "personal_expense"
-  | "business_expense"
-  | "business_expense_personal_pay"
-  | "personal_expense_business_pay"
-  | "transfer_to_personal"
-  | "transfer_to_business"
-  | "dividend_payment"
-  | "rental_income"
-  | "rental_expense"
-  | "business_income"
-  | "personal_income";
-
-function computeDelta(type: TransactionType, amount: number): number {
-  switch (type) {
-    case "business_expense_personal_pay":
-    case "transfer_to_business":
-      return amount;
-    case "personal_expense_business_pay":
-    case "transfer_to_personal":
-    case "dividend_payment":
-      return -amount;
-    default:
-      return 0;
+// Dividends are a corp → shareholder distribution by definition — never the reverse.
+function assertValidPurpose(fields: { from?: "personal" | "business"; to?: "personal" | "business"; purpose?: "dividend" }) {
+  if (fields.purpose === "dividend" && !(fields.from === "business" && fields.to === "personal")) {
+    throw new Error("A dividend must be a business → personal transfer");
   }
 }
 
 const recurringArgs = {
   description: v.string(),
   amount: v.number(),
-  type: transactionTypeValidator,
+  ...shapeArgs,
   categoryId: v.optional(v.id("categories")),
   propertyId: v.optional(v.id("properties")),
   notes: v.optional(v.string()),
@@ -68,9 +48,12 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthenticated");
+    assertValidPurpose(args);
+    const shape = shapeFromFields(args);
     return await ctx.db.insert("recurringTransactions", {
       userId: identity.tokenIdentifier,
       ...args,
+      ...toStorageFields(shape),
       isActive: true,
     });
   },
@@ -87,7 +70,9 @@ export const update = mutation({
     const rule = await ctx.db.get(args.recurringTransactionId);
     if (!rule || rule.userId !== identity.tokenIdentifier) throw new Error("Not found");
     const { recurringTransactionId, ...fields } = args;
-    await ctx.db.patch(recurringTransactionId, fields);
+    assertValidPurpose(fields);
+    const shape = shapeFromFields(fields);
+    await ctx.db.patch(recurringTransactionId, { ...fields, ...toStorageFields(shape) });
   },
 });
 
@@ -146,7 +131,8 @@ export const applyOccurrence = mutation({
       .unique();
     if (existing) throw new Error("This occurrence has already been applied");
 
-    const shareholderLoanDelta = computeDelta(rule.type, args.amount);
+    const shape = shapeFromFields(rule);
+    const shareholderLoanDelta = computeShareholderLoanDelta(shape, args.amount);
 
     const transactionId = await ctx.db.insert("transactions", {
       userId: identity.tokenIdentifier,
@@ -154,7 +140,7 @@ export const applyOccurrence = mutation({
       amount: args.amount,
       description: rule.description,
       notes: args.notes ?? rule.notes,
-      type: rule.type,
+      ...toStorageFields(shape),
       categoryId: rule.categoryId,
       propertyId: rule.propertyId,
       shareholderLoanDelta,
@@ -252,8 +238,10 @@ export const autoApplyDue = internalMutation({
           .unique();
 
         if (existing) continue;
+        if (!rule.kind) continue; // shouldn't happen — every rule carries a kind post-migration
 
-        const shareholderLoanDelta = computeDelta(rule.type as TransactionType, rule.amount);
+        const shape = shapeFromFields(rule);
+        const shareholderLoanDelta = computeShareholderLoanDelta(shape, rule.amount);
 
         const transactionId = await ctx.db.insert("transactions", {
           userId: rule.userId,
@@ -261,7 +249,7 @@ export const autoApplyDue = internalMutation({
           amount: rule.amount,
           description: rule.description,
           notes: rule.notes,
-          type: rule.type,
+          ...toStorageFields(shape),
           categoryId: rule.categoryId,
           propertyId: rule.propertyId,
           shareholderLoanDelta,

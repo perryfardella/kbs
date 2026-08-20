@@ -10,27 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { computeOccurrences, recurrenceLabel } from "@/lib/recurrence";
 import { subDays, format } from "date-fns";
-
-type TransactionType =
-  | "personal_expense"
-  | "business_expense"
-  | "business_expense_personal_pay"
-  | "personal_expense_business_pay"
-  | "transfer_to_personal"
-  | "transfer_to_business"
-  | "dividend_payment";
-
-type BadgeVariant = "personal" | "business" | "transfer";
-
-const typeConfig: Record<TransactionType, { label: string; variant: BadgeVariant }> = {
-  personal_expense:              { label: "Personal",           variant: "personal" },
-  business_expense:              { label: "Business",           variant: "business" },
-  business_expense_personal_pay: { label: "Biz (Personal Pay)", variant: "business" },
-  personal_expense_business_pay: { label: "Personal (Biz Pay)", variant: "personal" },
-  transfer_to_personal:          { label: "Corp → Me",          variant: "transfer" },
-  transfer_to_business:          { label: "Me → Corp",          variant: "transfer" },
-  dividend_payment:              { label: "Dividend",            variant: "transfer" },
-};
+import {
+  badgeVariantFor,
+  describeTransactionType,
+  tryShapeFromFields,
+  type LooseShapeFields,
+} from "@/lib/transactionFields";
 
 function formatCAD(amount: number): string {
   return new Intl.NumberFormat("en-CA", {
@@ -63,7 +48,7 @@ interface FlatOccurrence {
   ruleId: string;
   ruleName: string;
   ruleAmount: number;
-  ruleType: TransactionType;
+  ruleShapeFields: LooseShapeFields;
   ruleFrequency: string;
   date: string;
   appliedTransactionId?: string;
@@ -97,7 +82,7 @@ export function UpcomingList() {
           ruleId: rule._id,
           ruleName: rule.description,
           ruleAmount: rule.amount,
-          ruleType: rule.type as TransactionType,
+          ruleShapeFields: rule,
           ruleFrequency: recurrenceLabel(rule),
           date: occ.date,
           appliedTransactionId: appliedMap.get(key) as string | undefined,
@@ -261,7 +246,9 @@ function OccurrenceRow({
   isLast: boolean;
   onTap: () => void;
 }) {
-  const cfg = typeConfig[occ.ruleType];
+  const shape = tryShapeFromFields(occ.ruleShapeFields);
+  const label = shape ? describeTransactionType(shape) : "";
+  const variant = shape ? badgeVariantFor(shape) : "transfer";
   const applied = !!occ.appliedTransactionId;
 
   return (
@@ -287,8 +274,8 @@ function OccurrenceRow({
       </div>
 
       {/* Type badge */}
-      <Badge variant={cfg.variant} className="shrink-0 hidden sm:flex">
-        {cfg.label}
+      <Badge variant={variant} className="shrink-0 hidden sm:flex">
+        {label}
       </Badge>
 
       {/* Amount */}

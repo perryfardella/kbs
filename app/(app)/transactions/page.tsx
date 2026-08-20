@@ -20,41 +20,16 @@ import { AddRecurringDrawer } from "@/components/AddRecurringDrawer";
 import { EditRecurringDrawer } from "@/components/EditRecurringDrawer";
 import { ApplyOccurrenceDrawer } from "@/components/ApplyOccurrenceDrawer";
 import { UpcomingList } from "@/components/UpcomingList";
-
-type TransactionType =
-  | "personal_expense"
-  | "business_expense"
-  | "business_expense_personal_pay"
-  | "personal_expense_business_pay"
-  | "transfer_to_personal"
-  | "transfer_to_business"
-  | "dividend_payment"
-  | "rental_income"
-  | "rental_expense"
-  | "business_income"
-  | "personal_income";
+import { badgeVariantFor, describeTransactionType, tryShapeFromFields } from "@/lib/transactionFields";
 
 type FilterChip = "all" | "personal" | "business" | "transfers" | "property";
-type BadgeVariant = "personal" | "business" | "transfer" | "rental";
 
-const typeConfig: Record<TransactionType, { label: string; variant: BadgeVariant; indicator: string }> = {
-  personal_expense:             { label: "Personal",          variant: "personal", indicator: "bg-badge-personal" },
-  business_expense:             { label: "Business",          variant: "business", indicator: "bg-badge-business" },
-  business_expense_personal_pay:{ label: "Biz (Personal Pay)",variant: "business", indicator: "bg-badge-business" },
-  personal_expense_business_pay:{ label: "Personal (Biz Pay)",variant: "personal", indicator: "bg-badge-personal" },
-  transfer_to_personal:         { label: "Corp → Me",         variant: "transfer", indicator: "bg-badge-transfer" },
-  transfer_to_business:         { label: "Me → Corp",         variant: "transfer", indicator: "bg-badge-transfer" },
-  dividend_payment:             { label: "Dividend",          variant: "transfer", indicator: "bg-badge-transfer" },
-  rental_income:                { label: "Rental Income",     variant: "rental",   indicator: "bg-badge-rental" },
-  rental_expense:               { label: "Rental Expense",    variant: "rental",   indicator: "bg-badge-rental" },
-  personal_income:              { label: "Personal Income",   variant: "personal", indicator: "bg-badge-personal" },
-  business_income:              { label: "Business Income",   variant: "business", indicator: "bg-badge-business" },
+const INDICATOR_BY_VARIANT: Record<string, string> = {
+  personal: "bg-badge-personal",
+  business: "bg-badge-business",
+  transfer: "bg-badge-transfer",
+  rental: "bg-badge-rental",
 };
-
-const PERSONAL_TYPES: TransactionType[] = ["personal_expense", "personal_expense_business_pay", "personal_income"];
-const BUSINESS_TYPES: TransactionType[] = ["business_expense", "business_expense_personal_pay", "business_income"];
-const TRANSFER_TYPES: TransactionType[] = ["transfer_to_personal", "transfer_to_business", "dividend_payment"];
-const RENTAL_TYPES: TransactionType[] = ["rental_income", "rental_expense"];
 
 function formatCAD(amount: number): string {
   return new Intl.NumberFormat("en-CA", {
@@ -101,10 +76,10 @@ function HistoryTab() {
 
   const filtered = useMemo(() => {
     if (chip === "all") return results;
-    if (chip === "personal") return results.filter((tx) => PERSONAL_TYPES.includes(tx.type as TransactionType));
-    if (chip === "business") return results.filter((tx) => BUSINESS_TYPES.includes(tx.type as TransactionType));
-    if (chip === "property") return results.filter((tx) => RENTAL_TYPES.includes(tx.type as TransactionType));
-    return results.filter((tx) => TRANSFER_TYPES.includes(tx.type as TransactionType));
+    if (chip === "personal") return results.filter((tx) => tx.kind !== "transfer" && tx.realm === "personal");
+    if (chip === "business") return results.filter((tx) => tx.kind !== "transfer" && tx.realm === "business");
+    if (chip === "property") return results.filter((tx) => tx.realm === "rental");
+    return results.filter((tx) => tx.kind === "transfer");
   }, [results, chip]);
 
   const grouped = useMemo(() => {
@@ -251,18 +226,21 @@ function HistoryTab() {
                 </div>
                 <ListContainer>
                   {txns.map((tx) => {
-                    const config = typeConfig[tx.type as TransactionType];
+                    const shape = tryShapeFromFields(tx);
+                    const label = shape ? describeTransactionType(shape) : "";
+                    const variant = shape ? badgeVariantFor(shape) : "transfer";
+                    const indicator = INDICATOR_BY_VARIANT[variant] ?? "bg-badge-transfer";
                     return (
                       <ListItem key={tx._id} asChild>
                         <Link href={`/transactions?edit=${tx._id}`}>
-                          <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${config.indicator}`} />
+                          <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${indicator}`} />
                           <span className="shrink-0 text-xs text-text-muted font-mono w-12">
                             {formatShortDate(tx.date)}
                           </span>
                           <span className="flex-1 truncate text-sm text-text-primary">
                             {tx.description}
                           </span>
-                          <Badge variant={config.variant}>{config.label}</Badge>
+                          <Badge variant={variant}>{label}</Badge>
                           <span className="shrink-0 font-mono text-sm text-text-primary text-right min-w-[60px]">
                             {formatCAD(tx.amount)}
                           </span>

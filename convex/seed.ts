@@ -1,29 +1,23 @@
 import { internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
+import {
+  LEGACY_TYPE_TO_SHAPE,
+  computeShareholderLoanDelta,
+  toStorageFields,
+  type LegacyTransactionType,
+} from "../lib/transactionFields";
 
-type TransactionType =
+type TransactionType = Extract<
+  LegacyTransactionType,
   | "personal_expense"
   | "business_expense"
   | "business_expense_personal_pay"
   | "personal_expense_business_pay"
   | "transfer_to_personal"
   | "transfer_to_business"
-  | "dividend_payment";
-
-function computeDelta(type: TransactionType, amount: number): number {
-  switch (type) {
-    case "business_expense_personal_pay":
-    case "transfer_to_business":
-      return amount;
-    case "personal_expense_business_pay":
-    case "transfer_to_personal":
-    case "dividend_payment":
-      return -amount;
-    default:
-      return 0;
-  }
-}
+  | "dividend_payment"
+>;
 
 const DEFAULT_CATEGORIES: Array<{
   name: string;
@@ -230,7 +224,8 @@ export const seedTransactions = internalMutation({
           throw new Error(`Category not found: "${tx.categoryName}"`);
         }
       }
-      const shareholderLoanDelta = computeDelta(tx.type, tx.amount);
+      const shape = LEGACY_TYPE_TO_SHAPE[tx.type];
+      const shareholderLoanDelta = computeShareholderLoanDelta(shape, tx.amount);
       await ctx.db.insert("transactions", {
         userId,
         date: tx.date,
@@ -238,6 +233,7 @@ export const seedTransactions = internalMutation({
         description: tx.description,
         notes: tx.notes,
         type: tx.type,
+        ...toStorageFields(shape),
         categoryId,
         shareholderLoanDelta,
       });

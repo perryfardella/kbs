@@ -10,7 +10,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Toggle } from "@/components/ui/toggle";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
@@ -33,63 +32,10 @@ import {
   transactionSchema,
   type TransactionFormValues,
 } from "@/app/(app)/transactions/transactionSchema";
-
-type TransactionType =
-  | "personal_expense"
-  | "business_expense"
-  | "business_expense_personal_pay"
-  | "personal_expense_business_pay"
-  | "transfer_to_personal"
-  | "transfer_to_business"
-  | "dividend_payment"
-  | "rental_income"
-  | "rental_expense"
-  | "business_income"
-  | "personal_income";
-
-type CategoryRealm = "personal" | "business" | "rental" | null;
-
-const TYPE_OPTIONS: {
-  value: TransactionType;
-  label: string;
-  tooltip?: string;
-  categoryRealm: CategoryRealm;
-  isIncome?: boolean;
-}[] = [
-  { value: "personal_expense",             label: "Personal Expense",               categoryRealm: "personal" },
-  { value: "business_expense",             label: "Business Expense",               categoryRealm: "business" },
-  { value: "personal_income",              label: "Personal Income",                tooltip: "Money you earned personally, outside the corp (e.g. another job, freelance work)",                          categoryRealm: "personal", isIncome: true },
-  { value: "business_income",              label: "Business Income",                tooltip: "Revenue the corp received for services rendered",                                                              categoryRealm: "business", isIncome: true },
-  { value: "business_expense_personal_pay",label: "Biz Expense (Personal Pay)",     tooltip: "I paid a business expense from my own pocket",                                                                 categoryRealm: "business" },
-  { value: "personal_expense_business_pay",label: "Personal Expense (Business Pay)",tooltip: "I paid a personal expense from my business account",                                                          categoryRealm: "personal" },
-  { value: "rental_income",                label: "Rental Income",                  tooltip: "Rent or other income received from an investment property",                                                    categoryRealm: null },
-  { value: "rental_expense",               label: "Rental Expense",                 tooltip: "An expense for an investment property (mortgage interest, repairs, etc.)",                                     categoryRealm: "rental" },
-  { value: "transfer_to_personal",         label: "Corp → Me",                      tooltip: "Informal transfer — corp sent money to my personal account (e.g. to cover a personal expense or float)",      categoryRealm: null },
-  { value: "transfer_to_business",         label: "Me → Corp",                      tooltip: "I put personal money into the business",                                                                       categoryRealm: null },
-  { value: "dividend_payment",             label: "Dividend / Repayment",           tooltip: "Formal corporate action — corp declared and paid a dividend, or formally repaid the shareholder loan",        categoryRealm: null },
-];
-
-// Only rental transactions are tagged to a property, and they require one.
-const PROPERTY_TYPES = new Set<TransactionType>([
-  "rental_income",
-  "rental_expense",
-]);
+import { TransactionKindFields } from "@/components/TransactionKindFields";
+import { getLoanImpact, tryShapeFromFields } from "@/lib/transactionFields";
 
 const MAX_RECEIPT_PHOTOS = 5;
-
-function getLoanImpact(type: TransactionType, amount: number): { text: string; positive: boolean } | null {
-  const fmt = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD", minimumFractionDigits: 2 }).format(amount);
-  switch (type) {
-    case "business_expense_personal_pay":
-    case "transfer_to_business":
-      return { text: `This will increase the corp's debt to you by ${fmt}`, positive: true };
-    case "transfer_to_personal":
-    case "dividend_payment":
-      return { text: `This will decrease the corp's debt to you by ${fmt}`, positive: false };
-    default:
-      return null;
-  }
-}
 
 interface EditTransactionFormProps {
   transactionId: Id<"transactions">;
@@ -170,7 +116,12 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
-      type: transaction.type as TransactionType,
+      kind: transaction.kind ?? "expense",
+      realm: transaction.realm,
+      account: transaction.account,
+      from: transaction.from,
+      to: transaction.to,
+      purpose: transaction.purpose,
       amount: String(transaction.amount),
       date: transaction.date,
       description: transaction.description,
@@ -180,17 +131,17 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
     },
   });
 
-  const transactionType = form.watch("type");
-  const selectedOption = TYPE_OPTIONS.find((t) => t.value === transactionType)!;
-  const showCategory = selectedOption.categoryRealm !== null;
-  const showProperty = PROPERTY_TYPES.has(transactionType);
-  const propertyRequired =
-    transactionType === "rental_income" || transactionType === "rental_expense";
+  const kind = form.watch("kind");
+  const realm = form.watch("realm");
+  const account = form.watch("account");
+  // Mirrors categoryRealmFor: no category for transfers or (uncategorized) rental income.
+  const showCategory = kind !== "transfer" && !!realm && !(kind === "income" && realm === "rental");
+  const showProperty = kind !== "transfer" && realm === "rental";
+  const propertyRequired = showProperty;
 
   const filteredCategories = categories.filter((cat) => {
-    if (!showCategory) return false;
-    if (Boolean(cat.isIncome) !== Boolean(selectedOption.isIncome)) return false;
-    const realm = selectedOption.categoryRealm;
+    if (!showCategory || !realm) return false;
+    if (Boolean(cat.isIncome) !== (kind === "income")) return false;
     if (realm === "personal") return cat.realm === "personal" || cat.realm === "both";
     if (realm === "business") return cat.realm === "business" || cat.realm === "both";
     if (realm === "rental") return cat.realm === "rental";
@@ -199,7 +150,11 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
 
   const amountStr = form.watch("amount");
   const amountNum = parseFloat(amountStr) || 0;
-  const loanImpact = amountNum > 0 ? getLoanImpact(transactionType, amountNum) : null;
+  const from = form.watch("from");
+  const to = form.watch("to");
+  const purpose = form.watch("purpose");
+  const shape = tryShapeFromFields({ kind, realm, account, from, to, purpose });
+  const loanImpact = getLoanImpact(shape, amountNum);
 
   const remainingExistingIds = existingStorageIds.filter((id) => !removedExistingIds.has(id));
   const existingUrlByStorageId = new Map(
@@ -254,7 +209,12 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
         amount: parseFloat(data.amount),
         description: data.description.trim(),
         notes: data.notes?.trim() || undefined,
-        type: data.type,
+        kind: data.kind,
+        realm: data.realm,
+        account: data.account,
+        from: data.from,
+        to: data.to,
+        purpose: data.purpose,
         categoryId: data.categoryId ? (data.categoryId as Id<"categories">) : undefined,
         propertyId: data.propertyId ? (data.propertyId as Id<"properties">) : undefined,
         receiptStorageIds: receiptStorageIds.length > 0 ? receiptStorageIds : undefined,
@@ -303,38 +263,7 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
             )}
 
             {/* Type Selector */}
-            <FormField
-              control={form.control}
-              name="type"
-              render={({ field }) => (
-                <div className="space-y-2">
-                  <label className="block text-xs font-medium text-text-muted uppercase tracking-wide">Type</label>
-                  <div className="flex gap-2 overflow-x-auto pb-1">
-                    {TYPE_OPTIONS.map((opt) => (
-                      <Toggle
-                        key={opt.value}
-                        pressed={field.value === opt.value}
-                        onPressedChange={() => {
-                          field.onChange(opt.value);
-                          form.setValue("categoryId", "");
-                          if (!PROPERTY_TYPES.has(opt.value)) {
-                            form.setValue("propertyId", "");
-                          }
-                        }}
-                      >
-                        {opt.label}
-                      </Toggle>
-                    ))}
-                  </div>
-                  {selectedOption.tooltip && (
-                    <p className="flex items-start gap-1.5 text-xs text-text-muted leading-relaxed">
-                      <Info size={12} className="mt-0.5 shrink-0" />
-                      {selectedOption.tooltip}
-                    </p>
-                  )}
-                </div>
-              )}
-            />
+            <TransactionKindFields form={form} />
 
             {/* Amount */}
             <FormField

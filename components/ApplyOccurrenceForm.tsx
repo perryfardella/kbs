@@ -9,27 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-
-type TransactionType =
-  | "personal_expense"
-  | "business_expense"
-  | "business_expense_personal_pay"
-  | "personal_expense_business_pay"
-  | "transfer_to_personal"
-  | "transfer_to_business"
-  | "dividend_payment";
-
-type BadgeVariant = "personal" | "business" | "transfer";
-
-const typeConfig: Record<TransactionType, { label: string; variant: BadgeVariant }> = {
-  personal_expense:              { label: "Personal",           variant: "personal" },
-  business_expense:              { label: "Business",           variant: "business" },
-  business_expense_personal_pay: { label: "Biz (Personal Pay)", variant: "business" },
-  personal_expense_business_pay: { label: "Personal (Biz Pay)", variant: "personal" },
-  transfer_to_personal:          { label: "Corp → Me",          variant: "transfer" },
-  transfer_to_business:          { label: "Me → Corp",          variant: "transfer" },
-  dividend_payment:              { label: "Dividend",            variant: "transfer" },
-};
+import { badgeVariantFor, describeTransactionType, tryShapeFromFields } from "@/lib/transactionFields";
 
 function formatCAD(amount: number): string {
   return new Intl.NumberFormat("en-CA", {
@@ -115,7 +95,9 @@ export function ApplyOccurrenceForm({
     return <p className="px-4 pt-4 text-sm text-text-muted">Recurring transaction not found.</p>;
   }
 
-  const cfg = typeConfig[rule.type as TransactionType];
+  const shape = tryShapeFromFields(rule);
+  const label = shape ? describeTransactionType(shape) : "";
+  const variant = shape ? badgeVariantFor(shape) : "transfer";
 
   return (
     <div className="px-4 pt-2 pb-2 space-y-4">
@@ -123,7 +105,7 @@ export function ApplyOccurrenceForm({
       <div className="rounded-2xl border border-border bg-surface px-4 py-3 space-y-2">
         <div className="flex items-center justify-between gap-2">
           <span className="text-base font-semibold text-text-primary truncate">{rule.description}</span>
-          <Badge variant={cfg.variant}>{cfg.label}</Badge>
+          <Badge variant={variant}>{label}</Badge>
         </div>
         {rule.categoryName && (
           <p className="text-xs text-text-muted">{rule.categoryName}</p>
