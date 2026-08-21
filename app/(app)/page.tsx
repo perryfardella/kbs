@@ -5,7 +5,6 @@ import { usePaginatedQuery, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ListContainer, ListItem } from "@/components/ui/list-container";
 import { PageHeader } from "@/components/PageHeader";
@@ -13,7 +12,7 @@ import Link from "next/link";
 import { AlertTriangle, RefreshCw, Building2, ChevronRight } from "lucide-react";
 import { computeOccurrences } from "@/lib/recurrence";
 import { format } from "date-fns";
-import { badgeVariantFor, describeTransactionType, tryShapeFromFields } from "@/lib/transactionFields";
+import { TransactionRow } from "@/components/TransactionRow";
 
 function formatCAD(amount: number): string {
   return new Intl.NumberFormat("en-CA", {
@@ -216,27 +215,11 @@ export default function DashboardPage() {
                 No transactions yet. Tap + to add one.
               </p>
             ) : (
-              recentTxns.slice(0, 5).map((tx) => {
-                const shape = tryShapeFromFields(tx);
-                const label = shape ? describeTransactionType(shape) : "";
-                const variant = shape ? badgeVariantFor(shape) : "transfer";
-                return (
-                  <ListItem key={tx._id} asChild>
-                    <Link href={`/transactions?edit=${tx._id}`}>
-                      <span className="w-14 shrink-0 font-mono text-xs text-text-muted">
-                        {formatShortDate(tx.date)}
-                      </span>
-                      <span className="flex-1 truncate text-sm text-text-primary">
-                        {tx.description}
-                      </span>
-                      <Badge variant={variant}>{label}</Badge>
-                      <span className="shrink-0 text-right font-mono text-sm text-text-primary">
-                        {formatCAD(tx.amount)}
-                      </span>
-                    </Link>
-                  </ListItem>
-                );
-              })
+              recentTxns
+                .slice(0, 5)
+                .map((tx) => (
+                  <TransactionRow key={tx._id} tx={tx} href={`/transactions?edit=${tx._id}`} />
+                ))
             )}
           </ListContainer>
         </div>

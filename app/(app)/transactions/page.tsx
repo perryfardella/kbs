@@ -5,12 +5,10 @@ import { usePaginatedQuery } from "convex/react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { api } from "@/convex/_generated/api";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ListContainer, ListItem } from "@/components/ui/list-container";
-import Link from "next/link";
 import { Search, X, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
@@ -20,16 +18,9 @@ import { AddRecurringDrawer } from "@/components/AddRecurringDrawer";
 import { EditRecurringDrawer } from "@/components/EditRecurringDrawer";
 import { ApplyOccurrenceDrawer } from "@/components/ApplyOccurrenceDrawer";
 import { UpcomingList } from "@/components/UpcomingList";
-import { badgeVariantFor, describeTransactionType, tryShapeFromFields } from "@/lib/transactionFields";
+import { TransactionRow } from "@/components/TransactionRow";
 
 type FilterChip = "all" | "personal" | "business" | "transfers" | "property";
-
-const INDICATOR_BY_VARIANT: Record<string, string> = {
-  personal: "bg-badge-personal",
-  business: "bg-badge-business",
-  transfer: "bg-badge-transfer",
-  rental: "bg-badge-rental",
-};
 
 function formatCAD(amount: number): string {
   return new Intl.NumberFormat("en-CA", {
@@ -37,11 +28,6 @@ function formatCAD(amount: number): string {
     currency: "CAD",
     minimumFractionDigits: 2,
   }).format(amount);
-}
-
-function formatShortDate(dateStr: string): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-CA", { month: "short", day: "numeric" });
 }
 
 function monthLabel(dateStr: string): string {
@@ -225,29 +211,9 @@ function HistoryTab() {
                   </span>
                 </div>
                 <ListContainer>
-                  {txns.map((tx) => {
-                    const shape = tryShapeFromFields(tx);
-                    const label = shape ? describeTransactionType(shape) : "";
-                    const variant = shape ? badgeVariantFor(shape) : "transfer";
-                    const indicator = INDICATOR_BY_VARIANT[variant] ?? "bg-badge-transfer";
-                    return (
-                      <ListItem key={tx._id} asChild>
-                        <Link href={`/transactions?edit=${tx._id}`}>
-                          <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${indicator}`} />
-                          <span className="shrink-0 text-xs text-text-muted font-mono w-12">
-                            {formatShortDate(tx.date)}
-                          </span>
-                          <span className="flex-1 truncate text-sm text-text-primary">
-                            {tx.description}
-                          </span>
-                          <Badge variant={variant}>{label}</Badge>
-                          <span className="shrink-0 font-mono text-sm text-text-primary text-right min-w-[60px]">
-                            {formatCAD(tx.amount)}
-                          </span>
-                        </Link>
-                      </ListItem>
-                    );
-                  })}
+                  {txns.map((tx) => (
+                    <TransactionRow key={tx._id} tx={tx} href={`/transactions?edit=${tx._id}`} />
+                  ))}
                 </ListContainer>
               </div>
             );
