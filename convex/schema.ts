@@ -16,8 +16,10 @@ const transactionTypeValidator = v.union(
 );
 
 // Compositional replacement for transactionTypeValidator — see lib/transactionFields.ts
-// and docs/adr/0001-compositional-transaction-model.md. `type` above is kept (now optional)
-// until the migration to these fields is complete and verified on prod.
+// and docs/adr/0001-compositional-transaction-model.md. The migration to these fields has
+// been verified complete on prod for `transactions` (checked 2026-08-20 — every row has
+// `kind` set). `type` above is kept (now optional) as a deprecated fallback until it's
+// removed in a follow-up cleanup.
 const kindValidator = v.union(v.literal("income"), v.literal("expense"), v.literal("transfer"));
 const realmValidator = v.union(
   v.literal("personal"),
@@ -67,7 +69,7 @@ export default defineSchema({
     amount: v.number(),
     description: v.string(),
     notes: v.optional(v.string()),
-    type: v.optional(transactionTypeValidator), // deprecated — superseded by kind/realm/account/from/to/purpose below, kept until the migration is complete and verified on prod
+    type: v.optional(transactionTypeValidator), // deprecated — superseded by kind/realm/account/from/to/purpose below; migration verified complete on prod, kept as fallback until removed
     kind: v.optional(kindValidator),
     realm: v.optional(realmValidator), // income/expense only
     account: v.optional(sideValidator), // income/expense only, ignored when realm === "rental"

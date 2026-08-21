@@ -63,6 +63,31 @@ export function computeShareholderLoanDelta(shape: TransactionShape, amount: num
     : transferDelta(realm, account, amount);
 }
 
+export type CashDirection = "you-to-corp" | "corp-to-you";
+
+// Only two Sides exist and the two never match on a row reaching this function
+// (delta would be 0, so it'd be filtered out of the ledger upstream) — direction
+// is fully determined by where cash originates.
+function directionFrom(from: Side): CashDirection {
+  return from === "personal" ? "you-to-corp" : "corp-to-you";
+}
+
+/**
+ * Which way cash physically moved for this row — independent of the loan-delta
+ * sign (see docs/handoff for the loan ledger redesign). Mirrors transferDelta's
+ * from/to handling: expense(realm=X, account=Y) moves cash Y → X, income(realm=X,
+ * account=Y) moves cash X → Y. Rental never reaches this — computeShareholderLoanDelta
+ * returns 0 for it, so rental rows are filtered out of the ledger upstream.
+ */
+export function deriveCashDirection(shape: TransactionShape): CashDirection {
+  if (shape.kind === "transfer") {
+    return directionFrom(shape.from);
+  }
+  const realm = shape.realm as Side;
+  const account = (shape.account ?? shape.realm) as Side;
+  return directionFrom(shape.kind === "expense" ? account : realm);
+}
+
 /** Same as shapeFromFields, but returns null instead of throwing — for UI code reading a form mid-fill-out. */
 export function tryShapeFromFields(fields: LooseShapeFields): TransactionShape | null {
   try {
