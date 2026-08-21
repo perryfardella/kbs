@@ -7,7 +7,6 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ListContainer, ListItem } from "@/components/ui/list-container";
 import { PageHeader } from "@/components/PageHeader";
@@ -16,7 +15,7 @@ import { EditTransactionDrawer } from "@/components/EditTransactionDrawer";
 import { EditPropertyDrawer } from "@/components/EditPropertyDrawer";
 import Link from "next/link";
 import { ChevronLeft, Pencil, Plus } from "lucide-react";
-import { badgeVariantFor, describeTransactionType, tryShapeFromFields } from "@/lib/transactionFields";
+import { TransactionRow } from "@/components/TransactionRow";
 
 function formatCAD(amount: number): string {
   return new Intl.NumberFormat("en-CA", {
@@ -24,11 +23,6 @@ function formatCAD(amount: number): string {
     currency: "CAD",
     minimumFractionDigits: 2,
   }).format(Math.abs(amount));
-}
-
-function formatShortDate(dateStr: string): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-CA", { month: "short", day: "numeric" });
 }
 
 const now = new Date();
@@ -156,29 +150,13 @@ function PropertyDetailInner() {
           ) : (
             <>
               <ListContainer>
-                {results.map((tx) => {
-                  const shape = tryShapeFromFields(tx);
-                  const label = shape ? describeTransactionType(shape) : "";
-                  const variant = shape ? badgeVariantFor(shape) : "transfer";
-                  const isIncome = tx.kind === "income" && tx.realm === "rental";
-                  return (
-                    <ListItem key={tx._id} asChild>
-                      <Link href={`${base}?edit=${tx._id}&returnTo=${returnTo}`}>
-                        <span className="shrink-0 w-12 font-mono text-xs text-text-muted">
-                          {formatShortDate(tx.date)}
-                        </span>
-                        <span className="flex-1 truncate text-sm text-text-primary">
-                          {tx.description}
-                        </span>
-                        <Badge variant={variant}>{label}</Badge>
-                        <span className={`shrink-0 text-right font-mono text-sm min-w-[60px] ${isIncome ? "text-positive" : "text-text-primary"}`}>
-                          {isIncome ? "+" : ""}
-                          {formatCAD(tx.amount)}
-                        </span>
-                      </Link>
-                    </ListItem>
-                  );
-                })}
+                {results.map((tx) => (
+                  <TransactionRow
+                    key={tx._id}
+                    tx={tx}
+                    href={`${base}?edit=${tx._id}&returnTo=${returnTo}`}
+                  />
+                ))}
               </ListContainer>
               {status === "CanLoadMore" && (
                 <Button variant="secondary" size="sm" className="w-full" onClick={() => loadMore(50)}>
