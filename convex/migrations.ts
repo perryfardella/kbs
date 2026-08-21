@@ -304,6 +304,121 @@ export const runDividendPaidMigration = internalMutation({
   },
 });
 
+/**
+ * Renames default categories that carried a redundant "(business)"/"(personal)"
+ * suffix — now that `realm` already distinguishes them, e.g. "Bank Fees (business)"
+ * and "Bank Fees (personal)" both become "Bank Fees" (business/personal realm
+ * still tells them apart). Only touches rows where isDefault is true and the name
+ * exactly matches one of the old default names below, so custom categories users
+ * added themselves are never renamed — even a custom category that happens to
+ * share an old default's exact name is left alone, since isDefault is false for it.
+ */
+const CATEGORY_RENAME_MAP: Record<string, string> = {
+  "Phone & Internet (business portion)": "Phone & Internet",
+  "Travel & Transportation (business)": "Travel & Transportation",
+  "Meals & Entertainment (business)": "Meals & Entertainment",
+  "Bank Fees (business)": "Bank Fees",
+  "Travel (personal)": "Travel",
+  "Bank Fees (personal)": "Bank Fees",
+};
+
+/** Read-only preview of what runCategoryRenameMigration would change. Review before running it. */
+export const previewCategoryRenameMigration = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const categories = await ctx.db.query("categories").collect();
+
+    let notDefault = 0;
+    let noRenameNeeded = 0;
+    const rows: Array<{
+      _id: string;
+      userId: string;
+      realm: string;
+      oldName: string;
+      newName: string;
+    }> = [];
+
+    for (const category of categories) {
+      if (!category.isDefault) {
+        notDefault++;
+        continue;
+      }
+      const newName = CATEGORY_RENAME_MAP[category.name];
+      if (!newName) {
+        noRenameNeeded++;
+        continue;
+      }
+      rows.push({
+        _id: category._id,
+        userId: category.userId,
+        realm: category.realm,
+        oldName: category.name,
+        newName,
+      });
+    }
+
+    return {
+      totalCategories: categories.length,
+      notDefault,
+      noRenameNeeded,
+      toMigrate: rows.length,
+      rows,
+    };
+  },
+});
+
+/**
+ * The real migration: renames every default category whose name matches
+ * CATEGORY_RENAME_MAP. Idempotent — once renamed, a row no longer matches the
+ * map, so it's safe to re-run. Run previewCategoryRenameMigration first.
+ */
+export const runCategoryRenameMigration = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const categories = await ctx.db.query("categories").collect();
+    let migrated = 0;
+    let skippedNotDefault = 0;
+    let skippedNoRenameNeeded = 0;
+
+    for (const category of categories) {
+      if (!category.isDefault) {
+        skippedNotDefault++;
+        continue;
+      }
+      const newName = CATEGORY_RENAME_MAP[category.name];
+      if (!newName) {
+        skippedNoRenameNeeded++;
+        continue;
+      }
+      await ctx.db.patch(category._id, { name: newName });
+      migrated++;
+    }
+
+    return {
+      migrated,
+      skippedNotDefault,
+      skippedNoRenameNeeded,
+      total: categories.length,
+    };
+  },
+});
+
+/** Confirms zero default categories are left with an old renamed name — run after runCategoryRenameMigration. */
+export const verifyCategoryRenameMigrationComplete = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const categories = await ctx.db.query("categories").collect();
+    const unmigrated = categories.filter(
+      (c) => c.isDefault && CATEGORY_RENAME_MAP[c.name] !== undefined
+    );
+    return {
+      totalCategories: categories.length,
+      unmigrated: unmigrated.length,
+      unmigratedIds: unmigrated.map((c) => c._id),
+    };
+  },
+});
+
 /** Same dividendPaid backfill for `recurringTransactions` — no delta to recompute there. */
 export const runDividendPaidRecurringMigration = internalMutation({
   args: {},

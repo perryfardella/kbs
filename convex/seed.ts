@@ -29,12 +29,12 @@ const DEFAULT_CATEGORIES: Array<{
   { name: "Professional Fees (accounting, legal)", realm: "business" },
   { name: "Office & Admin Supplies", realm: "business" },
   { name: "Software & Subscriptions", realm: "business" },
-  { name: "Phone & Internet (business portion)", realm: "business" },
-  { name: "Travel & Transportation (business)", realm: "business" },
-  { name: "Meals & Entertainment (business)", realm: "business" },
+  { name: "Phone & Internet", realm: "business" },
+  { name: "Travel & Transportation", realm: "business" },
+  { name: "Meals & Entertainment", realm: "business" },
   { name: "Home Office", realm: "business" },
   { name: "Marketing", realm: "business" },
-  { name: "Bank Fees (business)", realm: "business" },
+  { name: "Bank Fees", realm: "business" },
   { name: "Other Business", realm: "business" },
   { name: "Groceries", realm: "personal" },
   { name: "Dining & Restaurants", realm: "personal" },
@@ -43,8 +43,8 @@ const DEFAULT_CATEGORIES: Array<{
   { name: "Health & Wellness", realm: "personal" },
   { name: "Clothing & Personal", realm: "personal" },
   { name: "Entertainment & Subscriptions", realm: "personal" },
-  { name: "Travel (personal)", realm: "personal" },
-  { name: "Bank Fees (personal)", realm: "personal" },
+  { name: "Travel", realm: "personal" },
+  { name: "Bank Fees", realm: "personal" },
   { name: "Other Personal", realm: "personal" },
 ];
 
@@ -74,7 +74,7 @@ const SEED_TRANSACTIONS: SeedTransaction[] = [
   { date: "2025-07-12", amount: 48.90, description: "Petro-Canada — gas fill-up", type: "personal_expense" },
   { date: "2025-07-19", amount: 299.00, description: "Lululemon — athletic wear", type: "personal_expense", categoryName: "Clothing & Personal" },
   { date: "2025-08-02", amount: 112.65, description: "Superstore — groceries", type: "personal_expense", categoryName: "Groceries" },
-  { date: "2025-08-15", amount: 350.00, description: "WestJet — flights to Calgary (personal)", type: "personal_expense", categoryName: "Travel (personal)" },
+  { date: "2025-08-15", amount: 350.00, description: "WestJet — flights to Calgary (personal)", type: "personal_expense", categoryName: "Travel" },
   { date: "2025-08-22", amount: 210.00, description: "BC Hydro — electricity bill", type: "personal_expense", categoryName: "Housing & Utilities" },
   { date: "2025-09-05", amount: 145.80, description: "Safeway — groceries", type: "personal_expense", categoryName: "Groceries" },
   { date: "2025-09-13", amount: 62.40, description: "Shell — gas fill-up", type: "personal_expense" },
@@ -99,14 +99,14 @@ const SEED_TRANSACTIONS: SeedTransaction[] = [
   { date: "2025-06-25", amount: 49.00, description: "Jane App — EMR monthly subscription", type: "business_expense", categoryName: "Software & Subscriptions" },
   { date: "2025-07-08", amount: 2200.00, description: "AANP Conference — registration & materials", type: "business_expense", categoryName: "Professional Development / CME" },
   { date: "2025-07-15", amount: 49.00, description: "Jane App — EMR monthly subscription", type: "business_expense" },
-  { date: "2025-07-28", amount: 112.50, description: "Telus — business phone portion", type: "business_expense", categoryName: "Phone & Internet (business portion)" },
+  { date: "2025-07-28", amount: 112.50, description: "Telus — business phone portion", type: "business_expense", categoryName: "Phone & Internet" },
   { date: "2025-08-05", amount: 450.00, description: "Medical equipment — stethoscope replacement", type: "business_expense", categoryName: "Medical Supplies & Equipment" },
   { date: "2025-08-19", amount: 49.00, description: "Jane App — EMR monthly subscription", type: "business_expense", categoryName: "Software & Subscriptions" },
-  { date: "2025-09-02", amount: 75.00, description: "TD Bank — business account fees", type: "business_expense", categoryName: "Bank Fees (business)" },
+  { date: "2025-09-02", amount: 75.00, description: "TD Bank — business account fees", type: "business_expense", categoryName: "Bank Fees" },
   { date: "2025-09-16", amount: 49.00, description: "Jane App — EMR monthly subscription", type: "business_expense" },
   { date: "2025-10-07", amount: 800.00, description: "Home office — ergonomic chair (50% business)", type: "business_expense", categoryName: "Home Office", notes: "50% business use allocation" },
   { date: "2025-10-21", amount: 49.00, description: "Jane App — EMR monthly subscription", type: "business_expense", categoryName: "Software & Subscriptions" },
-  { date: "2025-11-04", amount: 112.50, description: "Telus — business phone portion", type: "business_expense", categoryName: "Phone & Internet (business portion)" },
+  { date: "2025-11-04", amount: 112.50, description: "Telus — business phone portion", type: "business_expense", categoryName: "Phone & Internet" },
   { date: "2025-11-18", amount: 49.00, description: "Jane App — EMR monthly subscription", type: "business_expense", categoryName: "Software & Subscriptions" },
   { date: "2025-12-09", amount: 250.00, description: "Medical Supplies Direct — gloves, syringes, PPE", type: "business_expense", categoryName: "Medical Supplies & Equipment" },
   { date: "2026-01-13", amount: 49.00, description: "Jane App — EMR monthly subscription", type: "business_expense", categoryName: "Software & Subscriptions" },
@@ -116,14 +116,14 @@ const SEED_TRANSACTIONS: SeedTransaction[] = [
   { date: "2025-04-05", amount: 89.50, description: "Amazon — medical reference books (personal card)", type: "business_expense_personal_pay", categoryName: "Professional Development / CME" },
   { date: "2025-04-19", amount: 156.00, description: "London Drugs — clinical supplies (personal card)", type: "business_expense_personal_pay", categoryName: "Medical Supplies & Equipment" },
   { date: "2025-05-07", amount: 62.40, description: "Staples — printer ink & paper (personal card)", type: "business_expense_personal_pay", categoryName: "Office & Admin Supplies" },
-  { date: "2025-05-21", amount: 245.00, description: "Air Canada — conference travel (personal card)", type: "business_expense_personal_pay", categoryName: "Travel & Transportation (business)" },
+  { date: "2025-05-21", amount: 245.00, description: "Air Canada — conference travel (personal card)", type: "business_expense_personal_pay", categoryName: "Travel & Transportation" },
   { date: "2025-06-03", amount: 38.90, description: "Tim Hortons — working lunch with colleague (personal card)", type: "business_expense_personal_pay" },
-  { date: "2025-06-17", amount: 320.00, description: "Fairmont — conference hotel (personal card)", type: "business_expense_personal_pay", categoryName: "Travel & Transportation (business)" },
+  { date: "2025-06-17", amount: 320.00, description: "Fairmont — conference hotel (personal card)", type: "business_expense_personal_pay", categoryName: "Travel & Transportation" },
   { date: "2025-07-01", amount: 110.00, description: "Zoom — annual subscription (personal card)", type: "business_expense_personal_pay", categoryName: "Software & Subscriptions" },
-  { date: "2025-08-08", amount: 54.75, description: "Business meals — client dinner (personal card)", type: "business_expense_personal_pay", categoryName: "Meals & Entertainment (business)" },
+  { date: "2025-08-08", amount: 54.75, description: "Business meals — client dinner (personal card)", type: "business_expense_personal_pay", categoryName: "Meals & Entertainment" },
   { date: "2025-09-10", amount: 198.00, description: "UBC — online CME module (personal card)", type: "business_expense_personal_pay", categoryName: "Professional Development / CME" },
   { date: "2025-10-02", amount: 76.20, description: "Staples — business stationery (personal card)", type: "business_expense_personal_pay", categoryName: "Office & Admin Supplies" },
-  { date: "2025-11-01", amount: 415.00, description: "Air Canada — site visit travel (personal card)", type: "business_expense_personal_pay", categoryName: "Travel & Transportation (business)" },
+  { date: "2025-11-01", amount: 415.00, description: "Air Canada — site visit travel (personal card)", type: "business_expense_personal_pay", categoryName: "Travel & Transportation" },
   { date: "2025-12-03", amount: 48.50, description: "Business lunch — team meeting (personal card)", type: "business_expense_personal_pay" },
   { date: "2026-01-07", amount: 299.00, description: "Microsoft 365 — annual business plan (personal card)", type: "business_expense_personal_pay", categoryName: "Software & Subscriptions" },
   { date: "2026-02-04", amount: 88.00, description: "Kinkos — patient handout printing (personal card)", type: "business_expense_personal_pay" },
@@ -195,6 +195,8 @@ export const seedTransactions = internalMutation({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
+    // Keyed by "name|realm" since default category names (e.g. "Bank Fees")
+    // are no longer unique across realms.
     let categoryIds: Map<string, Id<"categories">>;
 
     if (existingCats.length === 0) {
@@ -208,10 +210,12 @@ export const seedTransactions = internalMutation({
           isDefault: true,
           isArchived: false,
         });
-        categoryIds.set(cat.name, id);
+        categoryIds.set(`${cat.name}|${cat.realm}`, id);
       }
     } else {
-      categoryIds = new Map(existingCats.map((c) => [c.name, c._id]));
+      categoryIds = new Map(
+        existingCats.map((c) => [`${c.name}|${c.realm}`, c._id])
+      );
     }
 
     // Insert all 100 transactions
@@ -219,9 +223,17 @@ export const seedTransactions = internalMutation({
     for (const tx of SEED_TRANSACTIONS) {
       let categoryId: Id<"categories"> | undefined;
       if (tx.categoryName) {
-        categoryId = categoryIds.get(tx.categoryName);
+        const shape = LEGACY_TYPE_TO_SHAPE[tx.type];
+        if (shape.kind === "transfer") {
+          throw new Error(
+            `Transaction type "${tx.type}" has no realm; cannot resolve categoryName "${tx.categoryName}"`
+          );
+        }
+        categoryId = categoryIds.get(`${tx.categoryName}|${shape.realm}`);
         if (!categoryId) {
-          throw new Error(`Category not found: "${tx.categoryName}"`);
+          throw new Error(
+            `Category not found: "${tx.categoryName}" (realm: ${shape.realm})`
+          );
         }
       }
       const shape = LEGACY_TYPE_TO_SHAPE[tx.type];
