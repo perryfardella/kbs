@@ -4,9 +4,8 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
-import { ListContainer } from "@/components/ui/list-container";
 import { PageHeader } from "@/components/PageHeader";
-import { LoanLedgerTable } from "@/components/LoanLedgerTable";
+import { LoanLedgerList } from "@/components/LoanLedgerList";
 
 function formatCAD(amount: number): string {
   return new Intl.NumberFormat("en-CA", {
@@ -25,52 +24,46 @@ export default function LoanLedgerPage() {
   return (
     <div className="mx-auto max-w-lg">
       <PageHeader title="Loan" />
-      <div className="px-4 pt-4 pb-6 space-y-5">
+      <div className="px-4 pt-4 pb-6">
         {/* Balance Hero */}
-        <Card className="p-5 space-y-1">
-          <p className="text-sm text-text-muted font-medium">
-            {balance === undefined
-              ? "Loading…"
-              : isPositive
-                ? "Corp owes you"
-                : "You owe corp"}
-          </p>
+        <Card className="mb-5 p-4">
           {balance === undefined ? (
-            <Skeleton className="h-10 w-48" />
+            <>
+              <Skeleton className="mb-1 h-4 w-28" />
+              <Skeleton className="h-10 w-48" />
+            </>
           ) : (
-            <p
-              className={`font-mono text-4xl font-semibold tracking-tight ${isPositive ? "text-positive" : "text-negative"}`}
-            >
-              {isPositive && "+"}
-              {formatCAD(balance)}
-            </p>
+            <>
+              <p className={`mb-1 text-[13px] font-semibold ${isPositive ? "text-loan-you" : "text-loan-corp"}`}>
+                {isPositive ? "Corp owes you" : "You owe the corp"}
+              </p>
+              <p className="font-mono text-[32px] font-semibold tracking-[-0.02em] text-text-primary">
+                {formatCAD(balance)}
+              </p>
+            </>
           )}
         </Card>
 
-      {/* Ledger Table */}
-      <div className="space-y-2">
-        <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide px-1">
-          Loan Activity
-        </h2>
-
+        {/* Ledger */}
         {ledger === undefined ? (
-          <ListContainer>
+          <div className="flex flex-col gap-1">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-3">
-                <Skeleton className="h-4 w-12" />
-                <Skeleton className="h-4 flex-1" />
-                <div className="flex flex-col items-end gap-1">
-                  <Skeleton className="h-4 w-16" />
+              <div key={i} className="flex flex-col gap-1 border-b border-border py-2.5">
+                <div className="flex items-baseline justify-between gap-2.5">
+                  <Skeleton className="h-4 flex-1" />
+                  <Skeleton className="h-3 w-24 shrink-0" />
+                </div>
+                <div className="flex items-baseline justify-between gap-2.5">
                   <Skeleton className="h-3 w-12" />
+                  <Skeleton className="h-3 w-28" />
                 </div>
               </div>
             ))}
-          </ListContainer>
+          </div>
         ) : (
-          <LoanLedgerTable entries={ledger} />
+          <LoanLedgerList entries={ledger} />
         )}
       </div>
-    </div>
     </div>
   );
 }

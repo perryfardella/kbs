@@ -13,6 +13,8 @@
   --badge-business: #a78bfa;
   --badge-transfer: #fb923c;
   --badge-rental: #34d399;
+  --loan-you: oklch(84% 0.06 85); /* warm gold-ish — "owed to you" / cash from personal */
+  --loan-corp: oklch(84% 0.06 250); /* cool periwinkle — "owed to corp" / cash from business */
 
   /* shadcn semantic aliases */
   --background: var(--bg);
@@ -47,6 +49,8 @@
   --color-badge-business: var(--badge-business);
   --color-badge-transfer: var(--badge-transfer);
   --color-badge-rental: var(--badge-rental);
+  --color-loan-you: var(--loan-you);
+  --color-loan-corp: var(--loan-corp);
   --font-display: var(--font-playfair);
   --font-body: var(--font-dm-sans);
 
