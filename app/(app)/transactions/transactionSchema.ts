@@ -8,7 +8,7 @@ export const transactionSchema = z
     from: z.enum(["personal", "business"]).optional(),
     to: z.enum(["personal", "business"]).optional(),
     purpose: z.literal("dividend").optional(),
-    dividendPaid: z.boolean().optional(),
+    paidDate: z.string().optional(),
     amount: z
       .string()
       .min(1, "Enter a valid amount")
@@ -48,6 +48,10 @@ export const transactionSchema = z
         path: ["propertyId"],
       });
     }
+  })
+  .refine((data) => !data.paidDate || data.paidDate >= data.date, {
+    message: "Paid date can't be before the declared date",
+    path: ["paidDate"],
   });
 
 export type TransactionFormValues = z.infer<typeof transactionSchema>;

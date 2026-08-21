@@ -116,7 +116,6 @@ function EditRecurringFormInner({ recurringTransactionId, rule, categories, onSu
       from: rule.from,
       to: rule.to,
       purpose: rule.purpose,
-      dividendPaid: rule.dividendPaid,
       amount: String(rule.amount),
       description: rule.description,
       categoryId: rule.categoryId ?? "",
@@ -166,7 +165,6 @@ function EditRecurringFormInner({ recurringTransactionId, rule, categories, onSu
         from: data.from,
         to: data.to,
         purpose: data.purpose,
-        dividendPaid: data.dividendPaid,
         categoryId: data.categoryId ? (data.categoryId as Id<"categories">) : undefined,
         propertyId: data.propertyId ? (data.propertyId as Id<"properties">) : undefined,
         notes: data.notes?.trim() || undefined,
@@ -189,7 +187,7 @@ function EditRecurringFormInner({ recurringTransactionId, rule, categories, onSu
       <form onSubmit={form.handleSubmit(handleSave)}>
         <div className="px-4 pt-2 space-y-3 pb-2">
           {/* Type Selector */}
-          <TransactionKindFields form={form} />
+          <TransactionKindFields form={form} showPaidDate={false} />
 
           {/* Amount */}
           <FormField

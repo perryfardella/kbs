@@ -65,7 +65,7 @@ export default defineSchema({
 
   transactions: defineTable({
     userId: v.string(), // tokenIdentifier from Clerk
-    date: v.string(), // "YYYY-MM-DD"
+    date: v.string(), // "YYYY-MM-DD" — also the declared date, for a dividend
     amount: v.number(),
     description: v.string(),
     notes: v.optional(v.string()),
@@ -76,9 +76,15 @@ export default defineSchema({
     from: v.optional(sideValidator), // transfer only
     to: v.optional(sideValidator), // transfer only
     purpose: v.optional(purposeValidator), // transfer only
-    // Only meaningful when purpose === "dividend". true = cash actually paid (loan-neutral);
-    // false/undefined = declared only, booked straight against the shareholder loan.
+    // deprecated — superseded by paidDate below; migration verified complete on prod
+    // (every dividend row has paidDate set iff dividendPaid was true), kept as fallback
+    // until removed in a follow-up cleanup.
     dividendPaid: v.optional(v.boolean()),
+    // Only meaningful when purpose === "dividend". Set once the cash is actually paid out
+    // (business → personal, loan-neutral); undefined = declared only, still booked straight
+    // against the shareholder loan. See lib/transactionFields.ts computeShareholderLoanDelta
+    // and expandLoanLedgerRows for how declared vs. paid dates move the loan ledger.
+    paidDate: v.optional(v.string()), // "YYYY-MM-DD"
     categoryId: v.optional(v.id("categories")),
     propertyId: v.optional(v.id("properties")),
     receiptStorageId: v.optional(v.id("_storage")), // deprecated, superseded by receiptStorageIds — unused, kept to avoid a data migration
@@ -106,7 +112,10 @@ export default defineSchema({
     from: v.optional(sideValidator),
     to: v.optional(sideValidator),
     purpose: v.optional(purposeValidator),
-    // Default paid state carried onto each generated occurrence; editable per-occurrence after.
+    // deprecated — a recurring rule never carries a paid state: every generated dividend
+    // occurrence always starts declared-only, with a paid date added later by editing that
+    // specific transaction (see convex/recurringTransactions.ts). Kept as fallback until
+    // removed in a follow-up cleanup.
     dividendPaid: v.optional(v.boolean()),
     categoryId: v.optional(v.id("categories")),
     propertyId: v.optional(v.id("properties")),

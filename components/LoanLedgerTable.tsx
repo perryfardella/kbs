@@ -20,6 +20,9 @@ function formatShortDate(dateStr: string): string {
 
 export interface LoanLedgerEntry {
   _id: Id<"transactions">;
+  // Unique per row — a dividend paid on a different date than it was declared expands
+  // into two rows sharing one _id (see expandLoanLedgerRows), so this is the React key.
+  legKey: string;
   date: string;
   description: string;
   amount: number;
@@ -60,13 +63,15 @@ export function LoanLedgerTable({
         </div>
       )}
       {entries.map((tx) => {
-        // A paid dividend nets to a 0 delta (see CONTEXT.md) but still belongs on this
-        // ledger — show it neutrally rather than defaulting to a misleading "-$0.00".
+        // A dividend declared and paid the same day nets to a 0 delta (see CONTEXT.md)
+        // but still belongs on this ledger — show it neutrally rather than defaulting to
+        // a misleading "-$0.00". A dividend paid on a later date instead shows as two
+        // rows (+amount declared, -amount paid — see expandLoanLedgerRows), neither zero.
         const deltaZero = tx.shareholderLoanDelta === 0;
         const deltaPositive = tx.shareholderLoanDelta > 0;
         const balancePositive = tx.runningBalance >= 0;
         return (
-          <div key={tx._id} className="flex flex-col gap-1 px-4 py-3 min-h-[44px] justify-center">
+          <div key={tx.legKey} className="flex flex-col gap-1 px-4 py-3 min-h-[44px] justify-center">
             <div className="flex items-baseline gap-2">
               <span className="flex-1 min-w-0 truncate text-sm text-text-primary">
                 {tx.description}

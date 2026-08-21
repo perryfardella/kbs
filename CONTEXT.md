@@ -27,10 +27,10 @@ Not a distinct concept — any Transfer between `personal` and `business`, in ei
 _Avoid_: modeling this as its own kind or purpose
 
 **Dividend**:
-A Transfer from `business` to `personal`, tagged `purpose: dividend`. Only valid in that direction — a dividend is corp-to-shareholder by definition. Always appears in the personal income report under its own "Dividend income" bucket, regardless of whether it's paid. Its effect on the Shareholder Loan depends on `dividendPaid`:
-- **Not paid** (declared only, no cash moves): reduces what the shareholder owes the corp / increases what the corp owes the shareholder by `+amount` — it's booked straight against the loan instead of being paid out.
-- **Paid** (real cash moves business → personal): the declaration leg and the cash leg cancel, so the net effect on the Shareholder Loan is `0`. The loan ledger still shows the row (as a cash movement with no balance impact), it just doesn't move the running balance.
-_Avoid_: Repayment, Distribution
+A Transfer from `business` to `personal`, tagged `purpose: dividend`. Only valid in that direction — a dividend is corp-to-shareholder by definition. Always appears in the personal income report under its own "Dividend income" bucket, recognized on its declared date regardless of whether it's paid. Carries two dates:
+- **Declared date** — the transaction's ordinary `date`. When it was declared: booked straight against the Shareholder Loan by `+amount` (reduces what the shareholder owes the corp / increases what the corp owes the shareholder), as of this date.
+- **Paid date** (`paidDate`, optional) — when the cash was actually paid out, business → personal. Unset means still declared-only. Once set, the loan ledger reflects the cash settling the earlier declaration by `-amount` as of the paid date — so the balance is accurate for the gap between the two dates, not just the eventual net effect. If declared and paid on the same date, this collapses to a single loan-neutral row rather than two rows that cancel out.
+_Avoid_: Repayment, Distribution, dividendPaid (deprecated boolean, superseded by `paidDate`)
 
 **Shareholder Loan**:
 The running balance of what the business owes its shareholder (negative if the shareholder owes the business instead), derived from every transaction's implied money movement between the `personal` and `business` accounts. Rental transactions never affect it, regardless of which account paid or received the cash.

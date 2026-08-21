@@ -350,3 +350,132 @@ export const verifyDividendPaidMigrationComplete = internalQuery({
     };
   },
 });
+
+/**
+ * dividendPaid → paidDate migration — human checkpoint. Replaces the boolean
+ * `dividendPaid` with an actual `paidDate` (see lib/transactionFields.ts and
+ * CONTEXT.md's Dividend definition): every dividend backfilled `dividendPaid: false`
+ * by the migration above stays declared-only (paidDate left unset); any row that was
+ * ever flipped `dividendPaid: true` gets `paidDate = date` (same-day), matching how a
+ * paid dividend behaved before this migration — declaration and cash always modeled as
+ * one same-day event. `dividendPaid` itself is then cleared (patched to `undefined`,
+ * which unsets it) since the loan ledger now reads `paidDate` exclusively.
+ */
+export const previewDividendDatesMigration = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const txns = await ctx.db.query("transactions").collect();
+
+    let notDividend = 0;
+    let alreadyMigrated = 0;
+    const rows: Array<{
+      _id: string;
+      date: string;
+      description: string;
+      dividendPaid: boolean | undefined;
+      newPaidDate: string | undefined;
+    }> = [];
+
+    for (const tx of txns) {
+      if (tx.purpose !== "dividend") {
+        notDividend++;
+        continue;
+      }
+      if (tx.paidDate !== undefined || tx.dividendPaid === undefined) {
+        // Already has a paidDate, or never went through the dividendPaid backfill
+        // (shouldn't happen for a dividend row, but nothing to do either way).
+        alreadyMigrated++;
+        continue;
+      }
+      rows.push({
+        _id: tx._id,
+        date: tx.date,
+        description: tx.description,
+        dividendPaid: tx.dividendPaid,
+        newPaidDate: tx.dividendPaid ? tx.date : undefined,
+      });
+    }
+
+    return {
+      totalTransactions: txns.length,
+      notDividend,
+      alreadyMigrated,
+      toMigrate: rows.length,
+      rows,
+    };
+  },
+});
+
+/**
+ * The real dividendPaid → paidDate migration for `transactions`. Idempotent: skips any
+ * row that already has `paidDate` set. Run previewDividendDatesMigration first.
+ */
+export const runDividendDatesMigration = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const txns = await ctx.db.query("transactions").collect();
+    let migrated = 0;
+    let skippedAlreadyMigrated = 0;
+    let skippedNotDividend = 0;
+
+    for (const tx of txns) {
+      if (tx.purpose !== "dividend") {
+        skippedNotDividend++;
+        continue;
+      }
+      if (tx.paidDate !== undefined || tx.dividendPaid === undefined) {
+        skippedAlreadyMigrated++;
+        continue;
+      }
+      await ctx.db.patch(tx._id, {
+        paidDate: tx.dividendPaid ? tx.date : undefined,
+        dividendPaid: undefined,
+      });
+      migrated++;
+    }
+
+    return { migrated, skippedAlreadyMigrated, skippedNotDividend, total: txns.length };
+  },
+});
+
+/**
+ * Clears the now-unused `dividendPaid` field on `recurringTransactions` — recurring
+ * rules never get a `paidDate` (see convex/recurringTransactions.ts), so there's nothing
+ * to backfill, only to unset. Idempotent: skips any rule that's already cleared.
+ */
+export const runDividendDatesRecurringMigration = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const rules = await ctx.db.query("recurringTransactions").collect();
+    let migrated = 0;
+    let skippedAlreadyMigrated = 0;
+
+    for (const rule of rules) {
+      if (rule.dividendPaid === undefined) {
+        skippedAlreadyMigrated++;
+        continue;
+      }
+      await ctx.db.patch(rule._id, { dividendPaid: undefined });
+      migrated++;
+    }
+
+    return { migrated, skippedAlreadyMigrated, total: rules.length };
+  },
+});
+
+/** Confirms zero rows are left with dividendPaid still set — run after the two migrations above. */
+export const verifyDividendDatesMigrationComplete = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const txns = await ctx.db.query("transactions").collect();
+    const rules = await ctx.db.query("recurringTransactions").collect();
+    const unmigratedTxns = txns.filter((tx) => tx.dividendPaid !== undefined);
+    const unmigratedRules = rules.filter((rule) => rule.dividendPaid !== undefined);
+    return {
+      transactionsUnmigrated: unmigratedTxns.length,
+      unmigratedTransactionIds: unmigratedTxns.map((tx) => tx._id),
+      recurringUnmigrated: unmigratedRules.length,
+      unmigratedRecurringIds: unmigratedRules.map((rule) => rule._id),
+    };
+  },
+});

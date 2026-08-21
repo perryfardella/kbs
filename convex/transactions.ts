@@ -4,6 +4,7 @@ import { paginationOptsValidator } from "convex/server";
 import { Id } from "./_generated/dataModel";
 import {
   computeShareholderLoanDelta,
+  expandLoanLedgerRows,
   shapeFromFields,
   toStorageFields,
 } from "../lib/transactionFields";
@@ -29,7 +30,7 @@ const shapeArgs = {
   from: v.optional(v.union(v.literal("personal"), v.literal("business"))),
   to: v.optional(v.union(v.literal("personal"), v.literal("business"))),
   purpose: v.optional(v.literal("dividend")),
-  dividendPaid: v.optional(v.boolean()),
+  paidDate: v.optional(v.string()),
 };
 
 // Dividends are a corp → shareholder distribution by definition — never the reverse.
@@ -37,6 +38,19 @@ function assertValidPurpose(fields: { from?: "personal" | "business"; to?: "pers
   if (fields.purpose === "dividend" && !(fields.from === "business" && fields.to === "personal")) {
     throw new Error("A dividend must be a business → personal transfer");
   }
+}
+
+// A dividend can only be paid on or after the day it was declared.
+function assertValidPaidDate(fields: { date: string; purpose?: "dividend"; paidDate?: string }) {
+  if (fields.purpose === "dividend" && fields.paidDate !== undefined && fields.paidDate < fields.date) {
+    throw new Error("Paid date can't be before the declared date");
+  }
+}
+
+// paidDate only applies to a dividend transfer — clear it explicitly for every other
+// shape so patching away from a dividend doesn't leave a stale value behind.
+function paidDateFor(shape: { kind: string; purpose?: "dividend" }, paidDate: string | undefined) {
+  return shape.kind === "transfer" && shape.purpose === "dividend" ? paidDate : undefined;
 }
 
 // A paid dividend nets to a 0 shareholderLoanDelta (the declaration and cash legs cancel),
@@ -62,6 +76,7 @@ export const create = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthenticated");
     assertValidPurpose(args);
+    assertValidPaidDate(args);
     const shape = shapeFromFields(args);
     const shareholderLoanDelta = computeShareholderLoanDelta(shape, args.amount);
     return await ctx.db.insert("transactions", {
@@ -71,6 +86,7 @@ export const create = mutation({
       description: args.description,
       notes: args.notes,
       ...toStorageFields(shape),
+      paidDate: paidDateFor(shape, args.paidDate),
       categoryId: args.categoryId,
       propertyId: args.propertyId,
       receiptStorageIds: args.receiptStorageIds,
@@ -98,6 +114,7 @@ export const update = mutation({
     if (!tx) throw new Error("Transaction not found");
     if (tx.userId !== identity.tokenIdentifier) throw new Error("Unauthorized");
     assertValidPurpose(args);
+    assertValidPaidDate(args);
     const shape = shapeFromFields(args);
     const shareholderLoanDelta = computeShareholderLoanDelta(shape, args.amount);
     await ctx.db.patch(args.transactionId, {
@@ -106,6 +123,7 @@ export const update = mutation({
       description: args.description,
       notes: args.notes,
       ...toStorageFields(shape),
+      paidDate: paidDateFor(shape, args.paidDate),
       categoryId: args.categoryId,
       propertyId: args.propertyId,
       receiptStorageIds: args.receiptStorageIds,
@@ -245,13 +263,12 @@ export const getShareholderLoanLedger = query({
       .withIndex("by_user_date", (q) => q.eq("userId", identity.tokenIdentifier))
       .order("asc")
       .collect();
+    const rows = expandLoanLedgerRows(txns.filter(belongsOnLoanLedger));
     let runningBalance = 0;
     const ledger = [];
-    for (const tx of txns) {
-      if (belongsOnLoanLedger(tx)) {
-        runningBalance += tx.shareholderLoanDelta;
-        ledger.push({ ...tx, runningBalance });
-      }
+    for (const row of rows) {
+      runningBalance += row.shareholderLoanDelta;
+      ledger.push({ ...row, runningBalance });
     }
     return ledger;
   },
@@ -406,18 +423,18 @@ export const getLoanLedgerRange = query({
       .withIndex("by_user_date", (q) => q.eq("userId", identity.tokenIdentifier))
       .order("asc")
       .collect();
+    const rows = expandLoanLedgerRows(txns.filter(belongsOnLoanLedger));
 
     let runningBalance = 0;
     let openingBalance = 0;
     const entries = [];
-    for (const tx of txns) {
-      if (!belongsOnLoanLedger(tx)) continue;
-      const isBeforeRange = tx.date < args.startDate;
-      runningBalance += tx.shareholderLoanDelta;
+    for (const row of rows) {
+      const isBeforeRange = row.date < args.startDate;
+      runningBalance += row.shareholderLoanDelta;
       if (isBeforeRange) {
         openingBalance = runningBalance;
-      } else if (tx.date <= args.endDate) {
-        entries.push({ ...tx, runningBalance });
+      } else if (row.date <= args.endDate) {
+        entries.push({ ...row, runningBalance });
       }
     }
     const closingBalance = entries.length > 0

@@ -28,6 +28,9 @@ function formatMonthYear(dateStr: string): string {
 
 export interface LoanLedgerListEntry {
   _id: Id<"transactions">;
+  // Unique per row — a dividend paid on a different date than it was declared expands
+  // into two rows sharing one _id (see expandLoanLedgerRows), so this is the React key.
+  legKey: string;
   date: string;
   description: string;
   amount: number;
@@ -39,7 +42,7 @@ export interface LoanLedgerListEntry {
   from?: Side;
   to?: Side;
   purpose?: Purpose;
-  dividendPaid?: boolean;
+  paidDate?: string;
 }
 
 type GroupItem =
@@ -171,7 +174,7 @@ export function LoanLedgerList({
               item.type === "marker" ? (
                 <ZeroCrossingMarker key={`marker-${group.key}-${ii}`} crossesTo={item.crossesTo} />
               ) : (
-                <LoanLedgerRow key={item.entry._id} entry={item.entry} showBorder={!item.isLastInGroup} />
+                <LoanLedgerRow key={item.entry.legKey} entry={item.entry} showBorder={!item.isLastInGroup} />
               )
             )}
           </div>
