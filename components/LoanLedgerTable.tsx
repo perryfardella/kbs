@@ -60,6 +60,9 @@ export function LoanLedgerTable({
         </div>
       )}
       {entries.map((tx) => {
+        // A paid dividend nets to a 0 delta (see CONTEXT.md) but still belongs on this
+        // ledger — show it neutrally rather than defaulting to a misleading "-$0.00".
+        const deltaZero = tx.shareholderLoanDelta === 0;
         const deltaPositive = tx.shareholderLoanDelta > 0;
         const balancePositive = tx.runningBalance >= 0;
         return (
@@ -69,9 +72,9 @@ export function LoanLedgerTable({
                 {tx.description}
               </span>
               <span
-                className={`shrink-0 font-mono text-sm font-semibold ${deltaPositive ? "text-positive" : "text-negative"}`}
+                className={`shrink-0 font-mono text-sm font-semibold ${deltaZero ? "text-text-muted" : deltaPositive ? "text-positive" : "text-negative"}`}
               >
-                {deltaPositive ? "+" : "-"}
+                {deltaZero ? "" : deltaPositive ? "+" : "-"}
                 {formatCAD(tx.shareholderLoanDelta)}
               </span>
             </div>

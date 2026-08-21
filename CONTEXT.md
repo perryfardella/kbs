@@ -27,7 +27,9 @@ Not a distinct concept — any Transfer between `personal` and `business`, in ei
 _Avoid_: modeling this as its own kind or purpose
 
 **Dividend**:
-A Transfer from `business` to `personal`, tagged `purpose: dividend`. Only valid in that direction — a dividend is corp-to-shareholder by definition. Reduces the Shareholder Loan exactly like any business→personal transfer, and additionally appears in the personal income report under its own "Dividend income" bucket.
+A Transfer from `business` to `personal`, tagged `purpose: dividend`. Only valid in that direction — a dividend is corp-to-shareholder by definition. Always appears in the personal income report under its own "Dividend income" bucket, regardless of whether it's paid. Its effect on the Shareholder Loan depends on `dividendPaid`:
+- **Not paid** (declared only, no cash moves): reduces what the shareholder owes the corp / increases what the corp owes the shareholder by `+amount` — it's booked straight against the loan instead of being paid out.
+- **Paid** (real cash moves business → personal): the declaration leg and the cash leg cancel, so the net effect on the Shareholder Loan is `0`. The loan ledger still shows the row (as a cash movement with no balance impact), it just doesn't move the running balance.
 _Avoid_: Repayment, Distribution
 
 **Shareholder Loan**:

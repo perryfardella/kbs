@@ -76,6 +76,9 @@ export default defineSchema({
     from: v.optional(sideValidator), // transfer only
     to: v.optional(sideValidator), // transfer only
     purpose: v.optional(purposeValidator), // transfer only
+    // Only meaningful when purpose === "dividend". true = cash actually paid (loan-neutral);
+    // false/undefined = declared only, booked straight against the shareholder loan.
+    dividendPaid: v.optional(v.boolean()),
     categoryId: v.optional(v.id("categories")),
     propertyId: v.optional(v.id("properties")),
     receiptStorageId: v.optional(v.id("_storage")), // deprecated, superseded by receiptStorageIds — unused, kept to avoid a data migration
@@ -103,6 +106,8 @@ export default defineSchema({
     from: v.optional(sideValidator),
     to: v.optional(sideValidator),
     purpose: v.optional(purposeValidator),
+    // Default paid state carried onto each generated occurrence; editable per-occurrence after.
+    dividendPaid: v.optional(v.boolean()),
     categoryId: v.optional(v.id("categories")),
     propertyId: v.optional(v.id("properties")),
     notes: v.optional(v.string()),

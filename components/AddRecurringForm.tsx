@@ -140,6 +140,7 @@ export function AddRecurringForm({ isOpen, onSuccess }: AddRecurringFormProps) {
         from: data.from,
         to: data.to,
         purpose: data.purpose,
+        dividendPaid: data.dividendPaid,
         categoryId: data.categoryId ? (data.categoryId as Id<"categories">) : undefined,
         propertyId: data.propertyId ? (data.propertyId as Id<"properties">) : undefined,
         notes: data.notes?.trim() || undefined,
