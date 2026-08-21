@@ -15,6 +15,7 @@ const shapeArgs = {
   from: v.optional(v.union(v.literal("personal"), v.literal("business"))),
   to: v.optional(v.union(v.literal("personal"), v.literal("business"))),
   purpose: v.optional(v.literal("dividend")),
+  dividendPaid: v.optional(v.boolean()),
 };
 
 // Dividends are a corp → shareholder distribution by definition — never the reverse.

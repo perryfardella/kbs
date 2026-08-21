@@ -32,6 +32,12 @@ export interface TransferShape {
   to: Side;
   /** Only valid when `from === "business" && to === "personal"`. */
   purpose?: Purpose;
+  /**
+   * Only meaningful when `purpose === "dividend"`. `true` = cash was actually paid
+   * (a real business→personal transfer, loan-neutral). `false`/`undefined` = declared
+   * only — booked straight against the shareholder loan, no cash moved.
+   */
+  dividendPaid?: boolean;
 }
 
 export type TransactionShape = IncomeExpenseShape | TransferShape;
@@ -53,6 +59,12 @@ function transferDelta(from: Side, to: Side, amount: number): number {
  */
 export function computeShareholderLoanDelta(shape: TransactionShape, amount: number): number {
   if (shape.kind === "transfer") {
+    // A dividend is declared against the loan (+amount) unless the cash was actually
+    // paid out, in which case the declaration leg and the cash leg cancel (0) — see
+    // CONTEXT.md. Not paid is the safe default for any caller that omits the flag.
+    if (shape.purpose === "dividend") {
+      return shape.dividendPaid ? 0 : amount;
+    }
     return transferDelta(shape.from, shape.to, amount);
   }
   const realm = shape.realm;
@@ -63,7 +75,7 @@ export function computeShareholderLoanDelta(shape: TransactionShape, amount: num
     : transferDelta(realm, account, amount);
 }
 
-export type CashDirection = "you-to-corp" | "corp-to-you";
+export type CashDirection = "you-to-corp" | "corp-to-you" | "none";
 
 // Only two Sides exist and the two never match on a row reaching this function
 // (delta would be 0, so it'd be filtered out of the ledger upstream) — direction
@@ -78,9 +90,13 @@ function directionFrom(from: Side): CashDirection {
  * from/to handling: expense(realm=X, account=Y) moves cash Y → X, income(realm=X,
  * account=Y) moves cash X → Y. Rental never reaches this — computeShareholderLoanDelta
  * returns 0 for it, so rental rows are filtered out of the ledger upstream.
+ *
+ * A declared-but-unpaid dividend is the one case where no cash moves at all — it's
+ * a synthetic entry booked straight against the loan — so it returns "none" instead.
  */
 export function deriveCashDirection(shape: TransactionShape): CashDirection {
   if (shape.kind === "transfer") {
+    if (shape.purpose === "dividend" && !shape.dividendPaid) return "none";
     return directionFrom(shape.from);
   }
   const realm = shape.realm as Side;
@@ -122,6 +138,7 @@ export interface TransactionShapeFields {
   from: Side | undefined;
   to: Side | undefined;
   purpose: Purpose | undefined;
+  dividendPaid: boolean | undefined;
 }
 
 /**
@@ -140,6 +157,7 @@ export function toStorageFields(shape: TransactionShape): TransactionShapeFields
       from: shape.from,
       to: shape.to,
       purpose: shape.purpose,
+      dividendPaid: shape.purpose === "dividend" ? (shape.dividendPaid ?? false) : undefined,
     };
   }
   return {
@@ -149,6 +167,7 @@ export function toStorageFields(shape: TransactionShape): TransactionShapeFields
     from: undefined,
     to: undefined,
     purpose: undefined,
+    dividendPaid: undefined,
   };
 }
 
@@ -192,7 +211,13 @@ export const LEGACY_TYPE_TO_SHAPE: Record<LegacyTransactionType, TransactionShap
   personal_expense_business_pay: { kind: "expense", realm: "personal", account: "business" },
   transfer_to_personal: { kind: "transfer", from: "business", to: "personal" },
   transfer_to_business: { kind: "transfer", from: "personal", to: "business" },
-  dividend_payment: { kind: "transfer", from: "business", to: "personal", purpose: "dividend" },
+  dividend_payment: {
+    kind: "transfer",
+    from: "business",
+    to: "personal",
+    purpose: "dividend",
+    dividendPaid: false,
+  },
   rental_income: { kind: "income", realm: "rental" },
   rental_expense: { kind: "expense", realm: "rental" },
   business_income: { kind: "income", realm: "business", account: "business" },
@@ -263,6 +288,7 @@ export interface LooseShapeFields {
   from?: Side;
   to?: Side;
   purpose?: Purpose;
+  dividendPaid?: boolean;
 }
 
 /**
@@ -278,7 +304,13 @@ export function shapeFromFields(fields: LooseShapeFields): TransactionShape {
   if (fields.kind === "transfer") {
     if (!fields.from || !fields.to) throw new Error("Transfer is missing from/to");
     if (fields.from === fields.to) throw new Error("Transfer from and to must differ");
-    return { kind: "transfer", from: fields.from, to: fields.to, purpose: fields.purpose };
+    return {
+      kind: "transfer",
+      from: fields.from,
+      to: fields.to,
+      purpose: fields.purpose,
+      dividendPaid: fields.dividendPaid,
+    };
   }
   if (!fields.realm) throw new Error(`${fields.kind} is missing a realm`);
   return { kind: fields.kind, realm: fields.realm, account: fields.account };

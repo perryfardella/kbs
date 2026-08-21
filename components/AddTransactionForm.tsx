@@ -140,7 +140,8 @@ export function AddTransactionForm({
   const from = form.watch("from");
   const to = form.watch("to");
   const purpose = form.watch("purpose");
-  const shape = tryShapeFromFields({ kind, realm, account, from, to, purpose });
+  const dividendPaid = form.watch("dividendPaid");
+  const shape = tryShapeFromFields({ kind, realm, account, from, to, purpose, dividendPaid });
   const loanImpact = getLoanImpact(shape, amountNum);
 
   function clearAutoFilled(fieldName: string) {
@@ -274,6 +275,7 @@ export function AddTransactionForm({
         from: data.from,
         to: data.to,
         purpose: data.purpose,
+        dividendPaid: data.dividendPaid,
         categoryId: data.categoryId ? (data.categoryId as Id<"categories">) : undefined,
         propertyId: data.propertyId ? (data.propertyId as Id<"properties">) : undefined,
         receiptStorageIds: receiptStorageIds.length > 0 ? receiptStorageIds : undefined,

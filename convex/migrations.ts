@@ -209,3 +209,144 @@ export const verifyMigrationComplete = internalQuery({
     };
   },
 });
+
+/**
+ * dividendPaid backfill — human checkpoint (per explicit product decision, discussed with
+ * the user in chat: every historical dividend was recorded assuming cash was always paid,
+ * i.e. shareholderLoanDelta === -amount. Going forward, "paid" nets to 0 and "not paid"
+ * is +amount — see lib/transactionFields.ts computeShareholderLoanDelta. Historical rows
+ * are being backfilled as NOT PAID, which flips their stored delta from -amount to
+ * +amount. This is a real, visible change to every subsequent running balance in the
+ * loan ledger — review this preview's totalNewDelta/netRunningBalanceShift before running
+ * runDividendPaidMigration.
+ */
+export const previewDividendPaidMigration = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const txns = await ctx.db.query("transactions").collect();
+
+    let notDividend = 0;
+    let alreadyMigrated = 0;
+    let totalCurrentDelta = 0;
+    let totalNewDelta = 0;
+    const rows: Array<{
+      _id: string;
+      date: string;
+      description: string;
+      amount: number;
+      storedDelta: number;
+      newDelta: number;
+    }> = [];
+
+    for (const tx of txns) {
+      if (tx.purpose !== "dividend") {
+        notDividend++;
+        continue;
+      }
+      if (tx.dividendPaid !== undefined) {
+        alreadyMigrated++;
+        continue;
+      }
+      totalCurrentDelta += tx.shareholderLoanDelta;
+      totalNewDelta += tx.amount; // not-paid dividend delta is always +amount
+      rows.push({
+        _id: tx._id,
+        date: tx.date,
+        description: tx.description,
+        amount: tx.amount,
+        storedDelta: tx.shareholderLoanDelta,
+        newDelta: tx.amount,
+      });
+    }
+
+    return {
+      totalTransactions: txns.length,
+      notDividend,
+      alreadyMigrated,
+      toMigrate: rows.length,
+      totalCurrentDelta,
+      totalNewDelta,
+      // How much the final running balance moves once this migration runs.
+      netRunningBalanceShift: totalNewDelta - totalCurrentDelta,
+      rows,
+    };
+  },
+});
+
+/**
+ * The real dividendPaid backfill for `transactions`. Sets dividendPaid: false and
+ * recomputes shareholderLoanDelta from -amount to +amount on every historical dividend
+ * row. Idempotent: skips any row that already has dividendPaid set, so it's safe to
+ * re-run. Run previewDividendPaidMigration first and review the numbers.
+ */
+export const runDividendPaidMigration = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const txns = await ctx.db.query("transactions").collect();
+    let migrated = 0;
+    let skippedAlreadyMigrated = 0;
+    let skippedNotDividend = 0;
+
+    for (const tx of txns) {
+      if (tx.purpose !== "dividend") {
+        skippedNotDividend++;
+        continue;
+      }
+      if (tx.dividendPaid !== undefined) {
+        skippedAlreadyMigrated++;
+        continue;
+      }
+      await ctx.db.patch(tx._id, { dividendPaid: false, shareholderLoanDelta: tx.amount });
+      migrated++;
+    }
+
+    return { migrated, skippedAlreadyMigrated, skippedNotDividend, total: txns.length };
+  },
+});
+
+/** Same dividendPaid backfill for `recurringTransactions` — no delta to recompute there. */
+export const runDividendPaidRecurringMigration = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const rules = await ctx.db.query("recurringTransactions").collect();
+    let migrated = 0;
+    let skippedAlreadyMigrated = 0;
+    let skippedNotDividend = 0;
+
+    for (const rule of rules) {
+      if (rule.purpose !== "dividend") {
+        skippedNotDividend++;
+        continue;
+      }
+      if (rule.dividendPaid !== undefined) {
+        skippedAlreadyMigrated++;
+        continue;
+      }
+      await ctx.db.patch(rule._id, { dividendPaid: false });
+      migrated++;
+    }
+
+    return { migrated, skippedAlreadyMigrated, skippedNotDividend, total: rules.length };
+  },
+});
+
+/** Confirms zero dividend rows are left without dividendPaid set — run after the two migrations above. */
+export const verifyDividendPaidMigrationComplete = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const txns = await ctx.db.query("transactions").collect();
+    const rules = await ctx.db.query("recurringTransactions").collect();
+    const unmigratedTxns = txns.filter(
+      (tx) => tx.purpose === "dividend" && tx.dividendPaid === undefined
+    );
+    const unmigratedRules = rules.filter(
+      (rule) => rule.purpose === "dividend" && rule.dividendPaid === undefined
+    );
+    return {
+      transactionsUnmigrated: unmigratedTxns.length,
+      unmigratedTransactionIds: unmigratedTxns.map((tx) => tx._id),
+      recurringUnmigrated: unmigratedRules.length,
+      unmigratedRecurringIds: unmigratedRules.map((rule) => rule._id),
+    };
+  },
+});

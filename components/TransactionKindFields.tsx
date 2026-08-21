@@ -15,6 +15,7 @@ export interface ShapeFormValues {
   from?: Side;
   to?: Side;
   purpose?: "dividend";
+  dividendPaid?: boolean;
   categoryId?: string;
   propertyId?: string;
 }
@@ -41,6 +42,7 @@ export function TransactionKindFields<T extends ShapeFormValues>({ form }: Trans
   const from = form.watch(path("from")) as unknown as Side | undefined;
   const to = form.watch(path("to")) as unknown as Side | undefined;
   const purpose = form.watch(path("purpose")) as unknown as "dividend" | undefined;
+  const dividendPaid = form.watch(path("dividendPaid")) as unknown as boolean | undefined;
 
   function set<K extends keyof ShapeFormValues>(key: K, value: ShapeFormValues[K]) {
     form.setValue(path(key), value as never);
@@ -57,6 +59,7 @@ export function TransactionKindFields<T extends ShapeFormValues>({ form }: Trans
       set("from", undefined);
       set("to", undefined);
       set("purpose", undefined);
+      set("dividendPaid", undefined);
     }
   }
 
@@ -72,6 +75,7 @@ export function TransactionKindFields<T extends ShapeFormValues>({ form }: Trans
     set("to", next.to);
     if (!(next.from === "business" && next.to === "personal")) {
       set("purpose", undefined);
+      set("dividendPaid", undefined);
     }
   }
 
@@ -158,7 +162,10 @@ export function TransactionKindFields<T extends ShapeFormValues>({ form }: Trans
             <div className="space-y-1.5">
               <Toggle
                 pressed={purpose === "dividend"}
-                onPressedChange={(pressed) => set("purpose", pressed ? "dividend" : undefined)}
+                onPressedChange={(pressed) => {
+                  set("purpose", pressed ? "dividend" : undefined);
+                  set("dividendPaid", pressed ? false : undefined);
+                }}
               >
                 Mark as dividend
               </Toggle>
@@ -166,6 +173,20 @@ export function TransactionKindFields<T extends ShapeFormValues>({ form }: Trans
                 <Info size={12} className="mt-0.5 shrink-0" />
                 Dividends also show up in your personal income report.
               </p>
+
+              {purpose === "dividend" && (
+                <div className="space-y-1.5 pt-1">
+                  <Toggle pressed={!!dividendPaid} onPressedChange={(pressed) => set("dividendPaid", pressed)}>
+                    Cash paid
+                  </Toggle>
+                  <p className="flex items-start gap-1.5 text-xs text-text-muted leading-relaxed">
+                    <Info size={12} className="mt-0.5 shrink-0" />
+                    {dividendPaid
+                      ? "Real cash moves business → personal. Since the dividend is being paid out, it has no net effect on the shareholder loan."
+                      : "No cash moves yet — this dividend is declared and booked straight against the shareholder loan, reducing what you owe the corp (or increasing what it owes you)."}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </>

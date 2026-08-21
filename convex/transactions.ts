@@ -29,6 +29,7 @@ const shapeArgs = {
   from: v.optional(v.union(v.literal("personal"), v.literal("business"))),
   to: v.optional(v.union(v.literal("personal"), v.literal("business"))),
   purpose: v.optional(v.literal("dividend")),
+  dividendPaid: v.optional(v.boolean()),
 };
 
 // Dividends are a corp → shareholder distribution by definition — never the reverse.
@@ -36,6 +37,14 @@ function assertValidPurpose(fields: { from?: "personal" | "business"; to?: "pers
   if (fields.purpose === "dividend" && !(fields.from === "business" && fields.to === "personal")) {
     throw new Error("A dividend must be a business → personal transfer");
   }
+}
+
+// A paid dividend nets to a 0 shareholderLoanDelta (the declaration and cash legs cancel),
+// but it still belongs on the loan ledger — it's the whole reason the row exists. Every
+// other 0-delta transaction (rental, same-account expense, etc.) is genuinely loan-inert
+// and stays excluded.
+function belongsOnLoanLedger(tx: { shareholderLoanDelta: number; purpose?: "dividend" }) {
+  return tx.shareholderLoanDelta !== 0 || tx.purpose === "dividend";
 }
 
 export const create = mutation({
@@ -239,7 +248,7 @@ export const getShareholderLoanLedger = query({
     let runningBalance = 0;
     const ledger = [];
     for (const tx of txns) {
-      if (tx.shareholderLoanDelta !== 0) {
+      if (belongsOnLoanLedger(tx)) {
         runningBalance += tx.shareholderLoanDelta;
         ledger.push({ ...tx, runningBalance });
       }
@@ -402,7 +411,7 @@ export const getLoanLedgerRange = query({
     let openingBalance = 0;
     const entries = [];
     for (const tx of txns) {
-      if (tx.shareholderLoanDelta === 0) continue;
+      if (!belongsOnLoanLedger(tx)) continue;
       const isBeforeRange = tx.date < args.startDate;
       runningBalance += tx.shareholderLoanDelta;
       if (isBeforeRange) {

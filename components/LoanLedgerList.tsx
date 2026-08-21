@@ -39,6 +39,7 @@ export interface LoanLedgerListEntry {
   from?: Side;
   to?: Side;
   purpose?: Purpose;
+  dividendPaid?: boolean;
 }
 
 type GroupItem =
@@ -114,11 +115,17 @@ function LoanLedgerRow({ entry, showBorder }: { entry: LoanLedgerListEntry; show
     <div className={`flex flex-col gap-1 py-2.5 ${showBorder ? "border-b border-border" : ""}`}>
       <div className="flex items-baseline justify-between gap-2.5">
         <span className="min-w-0 flex-1 truncate text-sm text-text-primary">{entry.description}</span>
-        <span
-          className={`shrink-0 whitespace-nowrap font-mono text-[11px] font-semibold ${isYouToCorp ? "text-loan-you" : "text-loan-corp"}`}
-        >
-          {formatCAD(entry.amount)} {isYouToCorp ? "you → corp" : "corp → you"}
-        </span>
+        {direction === "none" ? (
+          <span className="shrink-0 whitespace-nowrap font-mono text-[11px] font-semibold text-text-muted">
+            {formatCAD(entry.amount)} declared — no cash moved
+          </span>
+        ) : (
+          <span
+            className={`shrink-0 whitespace-nowrap font-mono text-[11px] font-semibold ${isYouToCorp ? "text-loan-you" : "text-loan-corp"}`}
+          >
+            {formatCAD(entry.amount)} {isYouToCorp ? "you → corp" : "corp → you"}
+          </span>
+        )}
       </div>
       <div className="flex items-baseline justify-between gap-2.5">
         <span className="font-mono text-[11px] text-text-muted">{formatShortDate(entry.date)}</span>
