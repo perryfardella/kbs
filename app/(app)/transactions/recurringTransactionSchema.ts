@@ -8,7 +8,6 @@ export const recurringTransactionSchema = z
     from: z.enum(["personal", "business"]).optional(),
     to: z.enum(["personal", "business"]).optional(),
     purpose: z.literal("dividend").optional(),
-    dividendPaid: z.boolean().optional(),
     amount: z
       .string()
       .min(1, "Enter a valid amount")

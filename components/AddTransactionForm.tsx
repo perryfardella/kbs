@@ -140,8 +140,8 @@ export function AddTransactionForm({
   const from = form.watch("from");
   const to = form.watch("to");
   const purpose = form.watch("purpose");
-  const dividendPaid = form.watch("dividendPaid");
-  const shape = tryShapeFromFields({ kind, realm, account, from, to, purpose, dividendPaid });
+  const paidDate = form.watch("paidDate");
+  const shape = tryShapeFromFields({ kind, realm, account, from, to, purpose, paidDate });
   const loanImpact = getLoanImpact(shape, amountNum);
 
   function clearAutoFilled(fieldName: string) {
@@ -275,7 +275,7 @@ export function AddTransactionForm({
         from: data.from,
         to: data.to,
         purpose: data.purpose,
-        dividendPaid: data.dividendPaid,
+        paidDate: data.paidDate || undefined,
         categoryId: data.categoryId ? (data.categoryId as Id<"categories">) : undefined,
         propertyId: data.propertyId ? (data.propertyId as Id<"properties">) : undefined,
         receiptStorageIds: receiptStorageIds.length > 0 ? receiptStorageIds : undefined,
@@ -375,7 +375,7 @@ export function AddTransactionForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel variant="muted">
-                    Date
+                    {purpose === "dividend" ? "Declared date" : "Date"}
                     <AutoFilledBadge field="date" autoFilled={autoFilled} />
                   </FormLabel>
                   <FormControl>

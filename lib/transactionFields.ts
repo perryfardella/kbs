@@ -36,6 +36,10 @@ export interface TransferShape {
    * Only meaningful when `purpose === "dividend"`. `true` = cash was actually paid
    * (a real business→personal transfer, loan-neutral). `false`/`undefined` = declared
    * only — booked straight against the shareholder loan, no cash moved.
+   *
+   * Not a stored field — derived from whether the transaction's `paidDate` is set
+   * (see `shapeFromFields`). Storage keeps the actual date so the loan ledger can place
+   * the payment on its own day; this shape only needs to know whether one exists.
    */
   dividendPaid?: boolean;
 }
@@ -131,6 +135,58 @@ export function getLoanImpact(
     : { text: `This will decrease the corp's debt to you by ${fmt}`, positive: false };
 }
 
+export interface LoanLedgerRowBase {
+  date: string;
+  paidDate?: string;
+  amount: number;
+  purpose?: Purpose;
+  shareholderLoanDelta: number;
+}
+
+/**
+ * Expands stored transactions into the dated rows that actually move the shareholder
+ * loan balance over time, sorted by date. Every non-dividend transaction, and any
+ * dividend that's still unpaid or was paid on the same day it was declared, stays a
+ * single row — identical to today's per-document model (its own `shareholderLoanDelta`
+ * on its own `date`).
+ *
+ * A dividend paid on a LATER date than it was declared is the one case that needs two
+ * rows: `+amount` on the declared date (booked against the loan, looks unpaid — no cash
+ * moved), `-amount` on the paid date (the cash settles it, looks like a real corp→you
+ * movement). Without this split, a single net-delta-per-document model can't represent
+ * the true balance during the gap between the two dates.
+ *
+ * The declared row's `paidDate` is cleared and the paid row's is kept, so downstream
+ * `shapeFromFields`/`deriveCashDirection` renders each half correctly without knowing
+ * about legs at all — they just see an unpaid-looking row followed by a paid-looking one.
+ */
+export function expandLoanLedgerRows<T extends LoanLedgerRowBase & { _id: string }>(
+  txns: T[]
+): (T & { legKey: string })[] {
+  const rows: (T & { legKey: string })[] = [];
+  for (const tx of txns) {
+    if (tx.purpose === "dividend" && tx.paidDate && tx.paidDate !== tx.date) {
+      rows.push({
+        ...tx,
+        date: tx.date,
+        paidDate: undefined,
+        shareholderLoanDelta: tx.amount,
+        legKey: `${tx._id}:declared`,
+      } as T & { legKey: string });
+      rows.push({
+        ...tx,
+        date: tx.paidDate,
+        shareholderLoanDelta: -tx.amount,
+        legKey: `${tx._id}:paid`,
+      } as T & { legKey: string });
+    } else {
+      rows.push({ ...tx, legKey: tx._id } as T & { legKey: string });
+    }
+  }
+  rows.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  return rows;
+}
+
 export interface TransactionShapeFields {
   kind: Kind;
   realm: Realm | undefined;
@@ -138,7 +194,6 @@ export interface TransactionShapeFields {
   from: Side | undefined;
   to: Side | undefined;
   purpose: Purpose | undefined;
-  dividendPaid: boolean | undefined;
 }
 
 /**
@@ -147,6 +202,11 @@ export interface TransactionShapeFields {
  * (rather than spreading a TransactionShape directly) in `ctx.db.patch` calls —
  * Convex treats an explicit `undefined` as "unset this field," unlike omitting
  * the key, which leaves any stale value from a previous shape untouched.
+ *
+ * `paidDate` isn't included here — unlike every other field, its stored value is a real
+ * date the shape doesn't carry (the shape only knows whether one exists, via
+ * `dividendPaid`). Callers write `paidDate` themselves alongside this, clearing it
+ * explicitly whenever `shape.purpose !== "dividend"` for the same stale-value reason.
  */
 export function toStorageFields(shape: TransactionShape): TransactionShapeFields {
   if (shape.kind === "transfer") {
@@ -157,7 +217,6 @@ export function toStorageFields(shape: TransactionShape): TransactionShapeFields
       from: shape.from,
       to: shape.to,
       purpose: shape.purpose,
-      dividendPaid: shape.purpose === "dividend" ? (shape.dividendPaid ?? false) : undefined,
     };
   }
   return {
@@ -167,7 +226,6 @@ export function toStorageFields(shape: TransactionShape): TransactionShapeFields
     from: undefined,
     to: undefined,
     purpose: undefined,
-    dividendPaid: undefined,
   };
 }
 
@@ -216,6 +274,8 @@ export const LEGACY_TYPE_TO_SHAPE: Record<LegacyTransactionType, TransactionShap
     from: "business",
     to: "personal",
     purpose: "dividend",
+    // Legacy rows never carried a paid date, and the current historical-data migration
+    // backfills every dividend as declared-only — matches that default.
     dividendPaid: false,
   },
   rental_income: { kind: "income", realm: "rental" },
@@ -288,7 +348,7 @@ export interface LooseShapeFields {
   from?: Side;
   to?: Side;
   purpose?: Purpose;
-  dividendPaid?: boolean;
+  paidDate?: string;
 }
 
 /**
@@ -309,7 +369,7 @@ export function shapeFromFields(fields: LooseShapeFields): TransactionShape {
       from: fields.from,
       to: fields.to,
       purpose: fields.purpose,
-      dividendPaid: fields.dividendPaid,
+      dividendPaid: fields.paidDate !== undefined,
     };
   }
   if (!fields.realm) throw new Error(`${fields.kind} is missing a realm`);

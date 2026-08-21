@@ -14,8 +14,10 @@ const shapeArgs = {
   account: v.optional(v.union(v.literal("personal"), v.literal("business"))),
   from: v.optional(v.union(v.literal("personal"), v.literal("business"))),
   to: v.optional(v.union(v.literal("personal"), v.literal("business"))),
+  // A recurring dividend rule never carries a paid state — every generated occurrence
+  // always starts declared-only; a paid date is added later by editing that occurrence's
+  // own transaction (shapeFromFields sees no paidDate here, so dividendPaid is always false).
   purpose: v.optional(v.literal("dividend")),
-  dividendPaid: v.optional(v.boolean()),
 };
 
 // Dividends are a corp → shareholder distribution by definition — never the reverse.
