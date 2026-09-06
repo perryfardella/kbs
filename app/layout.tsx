@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   description: "Personal bookkeeping for Karina's professional corporation",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "KBS",
   },
 };
@@ -31,7 +31,7 @@ export const viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#0a0a0a",
+  themeColor: "#f7f5f0",
 };
 
 export default function RootLayout({

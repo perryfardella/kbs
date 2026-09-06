@@ -9,10 +9,10 @@ const badgeVariants = cva(
     variants: {
       variant: {
         default:  "bg-surface text-text-muted",
-        personal: "bg-[#60a5fa]/20 text-[#60a5fa]",
-        business: "bg-[#a78bfa]/20 text-[#a78bfa]",
-        transfer: "bg-[#fb923c]/20 text-[#fb923c]",
-        rental:   "bg-[#34d399]/20 text-[#34d399]",
+        personal: "bg-[#1d4ed8]/15 text-[#1d4ed8]",
+        business: "bg-[#6d28d9]/15 text-[#6d28d9]",
+        transfer: "bg-[#9a3412]/15 text-[#9a3412]",
+        rental:   "bg-[#065f46]/15 text-[#065f46]",
         accent:   "bg-accent/10 text-accent",
       },
     },
