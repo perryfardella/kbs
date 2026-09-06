@@ -6,8 +6,8 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "KBS",
     start_url: "/",
     display: "standalone",
-    background_color: "#0a0a0a",
-    theme_color: "#0a0a0a",
+    background_color: "#f7f5f0",
+    theme_color: "#f7f5f0",
     orientation: "portrait",
     icons: [
       {

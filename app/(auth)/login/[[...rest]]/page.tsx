@@ -1,5 +1,4 @@
 import { SignIn } from "@clerk/nextjs";
-import { dark } from "@clerk/ui/themes";
 
 export default function LoginPage() {
   return (
@@ -10,16 +9,15 @@ export default function LoginPage() {
       </div>
       <SignIn
         appearance={{
-          theme: dark,
           variables: {
-            colorBackground: "#141414",
-            colorNeutral: "#f5f5f5",
-            colorPrimary: "#e8d5b0",
-            colorPrimaryForeground: "#0a0a0a",
-            colorForeground: "#f5f5f5",
-            colorInput: "#0a0a0a",
-            colorInputForeground: "#f5f5f5",
-            colorDanger: "#f87171",
+            colorBackground: "#ffffff",
+            colorNeutral: "#1c1917",
+            colorPrimary: "#8f6824",
+            colorPrimaryForeground: "#ffffff",
+            colorForeground: "#1c1917",
+            colorInput: "#f7f5f0",
+            colorInputForeground: "#1c1917",
+            colorDanger: "#b91c1c",
             borderRadius: "1rem",
           },
         }}
