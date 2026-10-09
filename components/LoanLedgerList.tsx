@@ -81,7 +81,10 @@ function buildMonthGroups(entries: LoanLedgerListEntry[]): MonthGroup[] {
     prevBalance = entry.runningBalance;
   });
 
+  // Balances are computed oldest-first above; display newest-first to match the transactions tab.
+  groups.reverse();
   for (const group of groups) {
+    group.items.reverse();
     for (let i = group.items.length - 1; i >= 0; i--) {
       const item = group.items[i];
       if (item.type === "row") {
