@@ -56,11 +56,13 @@ interface MonthGroup {
   items: GroupItem[];
 }
 
+// Entries arrive oldest-first (running balances accumulate in that order); groups are built
+// newest-first to match the transactions tab.
 function buildMonthGroups(entries: LoanLedgerListEntry[]): MonthGroup[] {
   const groups: MonthGroup[] = [];
-  let prevBalance = 0;
 
-  entries.forEach((entry, i) => {
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i];
     const key = entry.date.slice(0, 7);
     let group = groups[groups.length - 1];
     if (!group || group.key !== key) {
@@ -68,23 +70,19 @@ function buildMonthGroups(entries: LoanLedgerListEntry[]): MonthGroup[] {
       groups.push(group);
     }
 
+    group.items.push({ type: "row", entry, isLastInGroup: false });
+
+    // The marker sits between this row and the older one whose balance had the opposite sign.
     if (i > 0) {
-      const prevSign = Math.sign(prevBalance);
+      const prevSign = Math.sign(entries[i - 1].runningBalance);
       const currSign = Math.sign(entry.runningBalance);
       if (prevSign !== currSign && prevSign !== 0 && currSign !== 0) {
         group.items.push({ type: "marker", crossesTo: currSign < 0 ? "you-owe" : "corp-owes" });
       }
     }
+  }
 
-    group.items.push({ type: "row", entry, isLastInGroup: false });
-    group.closingBalance = entry.runningBalance;
-    prevBalance = entry.runningBalance;
-  });
-
-  // Balances are computed oldest-first above; display newest-first to match the transactions tab.
-  groups.reverse();
   for (const group of groups) {
-    group.items.reverse();
     for (let i = group.items.length - 1; i >= 0; i--) {
       const item = group.items[i];
       if (item.type === "row") {
