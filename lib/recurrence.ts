@@ -43,6 +43,11 @@ export function computeOccurrences(
   const start = parseISO(rule.startDate);
   const end = rule.endDate ? parseISO(rule.endDate) : null;
 
+  // Bad stored data must not hang the scan below (a NaN month index never matches, so the
+  // monthly/quarterly loop would never terminate) — and in autoApplyDue that would abort the
+  // cron for every user. No valid dates, no occurrences.
+  if (Number.isNaN(from.getTime()) || Number.isNaN(start.getTime())) return results;
+
   // The effective start is the later of fromDate and startDate
   const effectiveFrom = isBefore(from, start) ? start : from;
 

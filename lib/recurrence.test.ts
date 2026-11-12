@@ -61,3 +61,21 @@ test("labels", () => {
   assert.equal(quarterlyMonths("nope"), null);
   assert.equal(recurrenceLabel(q("2026-03-15")), "Quarterly on the 15th (Mar, Jun, Sep, Dec)");
 });
+
+test("invalid dates return nothing instead of looping forever", () => {
+  for (const frequency of ["weekly", "biweekly", "monthly", "quarterly", "yearly"] as const) {
+    assert.deepEqual(dates({ frequency, startDate: "" }, "2026-01-01", 5), [], `${frequency} bad startDate`);
+    assert.deepEqual(dates({ frequency, startDate: "2026-01-01" }, "nope", 5), [], `${frequency} bad fromDate`);
+  }
+});
+
+test("monthly: more cases pinned (anchor day, endDate, fromDate after start)", () => {
+  assert.deepEqual(dates({ frequency: "monthly", startDate: "2026-01-10", anchorDay: 29 }, "2026-01-01", 3), [
+    "2026-01-29", "2026-02-28", "2026-03-29",
+  ]);
+  assert.deepEqual(dates({ frequency: "monthly", startDate: "2026-01-15", endDate: "2026-03-14" }, "2026-01-01", 10), [
+    "2026-01-15", "2026-02-15",
+  ]);
+  assert.deepEqual(dates({ frequency: "monthly", startDate: "2026-01-15" }, "2026-02-16", 2), ["2026-03-15", "2026-04-15"]);
+  assert.deepEqual(dates({ frequency: "monthly", startDate: "2026-01-15" }, "2025-06-01", 1), ["2026-01-15"]);
+});

@@ -448,7 +448,7 @@ function EditRecurringFormInner({ recurringTransactionId, rule, categories, onSu
                 </FormControl>
                 {frequency === "quarterly" && quarterlyMonths(startDate) && (
                   <p className="text-xs text-text-muted leading-relaxed">
-                    Repeats in {quarterlyMonths(startDate)}, starting from this month.
+                    Repeats in {quarterlyMonths(startDate)}.
                   </p>
                 )}
                 <FormMessage />
