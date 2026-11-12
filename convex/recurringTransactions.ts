@@ -56,6 +56,7 @@ const recurringArgs = {
     v.literal("weekly"),
     v.literal("biweekly"),
     v.literal("monthly"),
+    v.literal("quarterly"),
     v.literal("yearly")
   ),
   anchorDay: v.optional(v.number()),

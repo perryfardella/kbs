@@ -1,10 +1,10 @@
 import { addDays, addMonths, format, parseISO, getDay, isBefore, isAfter } from "date-fns";
 
-export type RecurrenceFrequency = "weekly" | "biweekly" | "monthly" | "yearly";
+export type RecurrenceFrequency = "weekly" | "biweekly" | "monthly" | "quarterly" | "yearly";
 
 export interface RecurrenceRule {
   frequency: RecurrenceFrequency;
-  // weekly/biweekly: 0–6 (day of week, 0=Sun); monthly: 1–31 (day of month)
+  // weekly/biweekly: 0–6 (day of week, 0=Sun); monthly/quarterly: 1–31 (day of month)
   anchorDay?: number;
   // yearly only: "MM-DD"
   anchorDate?: string;
@@ -76,23 +76,31 @@ export function computeOccurrences(
       results.push({ date: toDateStr(current) });
       current = addDays(current, 14);
     }
-  } else if (rule.frequency === "monthly") {
+  } else if (rule.frequency === "monthly" || rule.frequency === "quarterly") {
     const targetDay = rule.anchorDay ?? start.getDate();
+    const everyNMonths = rule.frequency === "quarterly" ? 3 : 1;
+    // Quarterly phase comes from startDate, never from fromDate — callers pass different
+    // fromDates (today, a 60-day lookback…), and a phase that moved with them would
+    // generate duplicate or misdated occurrences.
+    const startMonthIndex = start.getFullYear() * 12 + start.getMonth();
 
     // Scan month by month starting from effectiveFrom's month
     let monthStart = new Date(effectiveFrom.getFullYear(), effectiveFrom.getMonth(), 1);
 
     while (results.length < limit) {
-      const candidate = clampedMonthDate(
-        monthStart.getFullYear(),
-        monthStart.getMonth(),
-        targetDay
-      );
+      const monthIndex = monthStart.getFullYear() * 12 + monthStart.getMonth();
+      if ((monthIndex - startMonthIndex) % everyNMonths === 0) {
+        const candidate = clampedMonthDate(
+          monthStart.getFullYear(),
+          monthStart.getMonth(),
+          targetDay
+        );
 
-      if (end && isAfter(candidate, end)) break;
+        if (end && isAfter(candidate, end)) break;
 
-      if (!isBefore(candidate, start) && !isBefore(candidate, effectiveFrom)) {
-        results.push({ date: toDateStr(candidate) });
+        if (!isBefore(candidate, start) && !isBefore(candidate, effectiveFrom)) {
+          results.push({ date: toDateStr(candidate) });
+        }
       }
 
       monthStart = addMonths(monthStart, 1);
@@ -131,6 +139,19 @@ function ordinalSuffix(n: number): string {
   }
 }
 
+const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** The four months a quarterly rule starting on `startDate` repeats in, e.g. "Mar, Jun, Sep, Dec". Null if the date is invalid. */
+export function quarterlyMonths(startDate: string): string | null {
+  const start = parseISO(startDate);
+  if (Number.isNaN(start.getTime())) return null;
+  return [0, 3, 6, 9]
+    .map((offset) => (start.getMonth() + offset) % 12)
+    .sort((a, b) => a - b)
+    .map((m) => SHORT_MONTHS[m])
+    .join(", ");
+}
+
 /** Returns a human-readable label for a recurrence rule, e.g. "Monthly on the 1st". */
 export function recurrenceLabel(rule: RecurrenceRule): string {
   const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -154,6 +175,11 @@ export function recurrenceLabel(rule: RecurrenceRule): string {
       const start = parseISO(rule.startDate);
       const day = rule.anchorDay ?? start.getDate();
       return `Monthly on the ${day}${ordinalSuffix(day)}`;
+    }
+    case "quarterly": {
+      const start = parseISO(rule.startDate);
+      const day = rule.anchorDay ?? start.getDate();
+      return `Quarterly on the ${day}${ordinalSuffix(day)} (${quarterlyMonths(rule.startDate)})`;
     }
     case "yearly": {
       const start = parseISO(rule.startDate);

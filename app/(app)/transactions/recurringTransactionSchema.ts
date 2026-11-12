@@ -17,8 +17,8 @@ export const recurringTransactionSchema = z
     categoryId: z.string().optional(),
     propertyId: z.string().optional(),
     notes: z.string().optional(),
-    frequency: z.enum(["weekly", "biweekly", "monthly", "yearly"]),
-    // weekly/biweekly: 0–6 (day of week); monthly: 1–31
+    frequency: z.enum(["weekly", "biweekly", "monthly", "quarterly", "yearly"]),
+    // weekly/biweekly: 0–6 (day of week); monthly/quarterly: 1–31
     anchorDay: z.number().optional(),
     // yearly: "MM-DD"
     anchorDate: z.string().optional(),
@@ -61,7 +61,7 @@ export const recurringTransactionSchema = z
         path: ["anchorDay"],
       });
     }
-    if (data.frequency === "monthly" && (data.anchorDay === undefined || data.anchorDay < 1 || data.anchorDay > 31)) {
+    if ((data.frequency === "monthly" || data.frequency === "quarterly") && (data.anchorDay === undefined || data.anchorDay < 1 || data.anchorDay > 31)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Enter a day between 1 and 31",
