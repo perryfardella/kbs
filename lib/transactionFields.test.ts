@@ -7,6 +7,8 @@ import {
   describeTransactionType,
   scrubTaxFields,
   shapeFromFields,
+  summarizeTax,
+  taxFieldIssues,
   toStorageFields,
   type Side,
 } from "./transactionFields.ts";
@@ -99,4 +101,44 @@ test("scrubTaxFields leaves non-tax rows alone and drops taxYear", () => {
     propertyId: "p",
     taxYear: undefined,
   });
+});
+
+test("summarizeTax splits paid/refunded per realm and nets them", () => {
+  const txns = [
+    { kind: "tax_payment" as const, realm: "business", amount: 1000 },
+    { kind: "tax_payment" as const, realm: "business", amount: 500 },
+    { kind: "tax_refund" as const, realm: "business", amount: 200 },
+    { kind: "tax_payment" as const, realm: "personal", amount: 300 },
+    // Not tax: must be ignored even in the same realm.
+    { kind: "expense" as const, realm: "business", amount: 9999 },
+    { kind: "income" as const, realm: "business", amount: 9999 },
+  ];
+  const b = summarizeTax(txns, "business");
+  assert.deepEqual([b.paid, b.refunded, b.net, b.rows.length], [1500, 200, 1300, 3]);
+  const p = summarizeTax(txns, "personal");
+  assert.deepEqual([p.paid, p.refunded, p.net], [300, 0, 300]);
+  assert.equal(summarizeTax([], "business").net, 0);
+});
+
+test("a refund larger than payments nets negative", () => {
+  assert.equal(
+    summarizeTax([{ kind: "tax_payment", realm: "personal", amount: 100 }, { kind: "tax_refund", realm: "personal", amount: 250 }], "personal").net,
+    -150
+  );
+});
+
+test("taxFieldIssues mirrors the server rules", () => {
+  assert.deepEqual(taxFieldIssues({ kind: "expense", realm: "rental", taxYear: "abc" }), []);
+  assert.deepEqual(taxFieldIssues({ kind: "tax_payment", realm: "business" }), []);
+  assert.deepEqual(taxFieldIssues({ kind: "tax_payment", realm: "business", taxYear: "2025" }), []);
+  assert.equal(taxFieldIssues({ kind: "tax_refund", realm: "rental" })[0].path, "realm");
+  for (const bad of ["202", "20255", "0000", "1800", "2300"]) {
+    assert.equal(taxFieldIssues({ kind: "tax_payment", realm: "business", taxYear: bad })[0]?.path, "taxYear", bad);
+  }
+});
+
+test("server accepts exactly the years the form accepts", () => {
+  const shape = shapeFromFields({ kind: "tax_payment", realm: "business" });
+  for (const y of [1900, 2025, 2200]) assert.equal(scrubTaxFields(shape, { date: "2026-01-01", taxYear: y }).taxYear, y);
+  for (const y of [1899, 2201, 2025.5]) assert.throws(() => scrubTaxFields(shape, { date: "2026-01-01", taxYear: y }));
 });

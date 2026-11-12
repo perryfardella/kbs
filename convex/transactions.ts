@@ -5,8 +5,8 @@ import { Id } from "./_generated/dataModel";
 import {
   computeShareholderLoanDelta,
   expandLoanLedgerRows,
-  isTaxKind,
   scrubTaxFields,
+  summarizeTax,
   shapeFromFields,
   toStorageFields,
 } from "../lib/transactionFields";
@@ -351,20 +351,6 @@ async function joinCategoryNames<T extends { categoryId?: Id<"categories"> }>(
     ...tx,
     categoryName: tx.categoryId ? (categoryNames.get(tx.categoryId) ?? null) : null,
   }));
-}
-
-// Tax paid, refunded and net (paid − refunded) for one realm — cash-basis, by `date`.
-function summarizeTax<
-  T extends { kind?: string; realm?: string; amount: number },
->(txns: T[], realm: "personal" | "business") {
-  const rows = txns.filter((tx) => isTaxKind(tx.kind as never) && tx.realm === realm);
-  let paid = 0;
-  let refunded = 0;
-  for (const tx of rows) {
-    if (tx.kind === "tax_refund") refunded += tx.amount;
-    else paid += tx.amount;
-  }
-  return { paid, refunded, net: paid - refunded, rows };
 }
 
 // Dashboard card: business tax over the corporation's fiscal year, personal tax over the

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isTaxKind } from "@/lib/transactionFields";
+import { isTaxKind, taxFieldIssues } from "@/lib/transactionFields";
 
 export const recurringTransactionSchema = z
   .object({
@@ -33,8 +33,8 @@ export const recurringTransactionSchema = z
     } else if (!data.realm) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Select who this is for", path: ["realm"] });
     } else if (isTaxKind(data.kind)) {
-      if (data.realm === "rental") {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Tax can't be recorded against rental", path: ["realm"] });
+      for (const issue of taxFieldIssues(data)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: issue.message, path: [issue.path] });
       }
     } else {
       const needsCategory = !(data.kind === "income" && data.realm === "rental");

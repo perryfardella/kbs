@@ -66,6 +66,16 @@ export function TransactionKindFields<T extends ShapeFormValues>({ form, showPai
   const paidDate = form.watch(path("paidDate")) as unknown as string | undefined;
   const taxYear = form.watch(path("taxYear")) as unknown as string | undefined;
   const isTax = isTaxKind(kind);
+  // Surface zod errors for the fields this component owns — otherwise a failed validation
+  // leaves Save silently doing nothing.
+  const errors = form.formState.errors as Record<string, { message?: string } | undefined>;
+  const fieldError = (key: keyof ShapeFormValues) => errors[key]?.message;
+  const errorText = (field: keyof ShapeFormValues) =>
+    fieldError(field) ? (
+      <p role="alert" className="text-xs text-negative">
+        {fieldError(field)}
+      </p>
+    ) : null;
 
   function set<K extends keyof ShapeFormValues>(key: K, value: ShapeFormValues[K]) {
     form.setValue(path(key), value as never);
@@ -158,6 +168,7 @@ export function TransactionKindFields<T extends ShapeFormValues>({ form, showPai
                 </Toggle>
               ))}
             </div>
+            {errorText("realm")}
           </div>
 
           {/* Paid via — which account the cash moved through. Hidden for rental
@@ -201,6 +212,7 @@ export function TransactionKindFields<T extends ShapeFormValues>({ form, showPai
                 value={taxYear ?? ""}
                 onChange={(e) => set("taxYear", e.target.value.replace(/\D/g, ""))}
               />
+              {errorText("taxYear")}
               <p className="flex items-start gap-1.5 text-xs text-text-muted leading-relaxed">
                 <Info size={12} className="mt-0.5 shrink-0" />
                 The year this tax relates to — e.g. 2025 for a balance paid in April 2026. Reports still group by the date paid.
@@ -225,6 +237,7 @@ export function TransactionKindFields<T extends ShapeFormValues>({ form, showPai
                 </Toggle>
               ))}
             </div>
+            {errorText("from")}
           </div>
 
           {/* Dividend — only a valid label for a business → personal transfer. */}

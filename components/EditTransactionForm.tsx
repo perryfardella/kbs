@@ -129,7 +129,12 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
       description: transaction.description,
       categoryId: transaction.categoryId ?? "",
       propertyId: transaction.propertyId ?? "",
-      taxYear: transaction.taxYear !== undefined ? String(transaction.taxYear) : "",
+      // Blank when it's just the default (the date's year), so correcting the date re-derives it
+      // instead of leaving a stale year the user never chose.
+      taxYear:
+        transaction.taxYear !== undefined && String(transaction.taxYear) !== transaction.date.slice(0, 4)
+          ? String(transaction.taxYear)
+          : "",
       notes: transaction.notes ?? "",
     },
   });

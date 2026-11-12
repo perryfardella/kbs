@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isTaxKind } from "@/lib/transactionFields";
+import { isTaxKind, taxFieldIssues } from "@/lib/transactionFields";
 
 export const transactionSchema = z
   .object({
@@ -36,11 +36,8 @@ export const transactionSchema = z
     }
     if (isTaxKind(data.kind)) {
       // Income tax is a personal/business matter only, and never carries a category or property.
-      if (data.realm === "rental") {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Tax can't be recorded against rental", path: ["realm"] });
-      }
-      if (data.taxYear && !/^\d{4}$/.test(data.taxYear)) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Enter a four-digit year", path: ["taxYear"] });
+      for (const issue of taxFieldIssues(data)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: issue.message, path: [issue.path] });
       }
       return;
     }

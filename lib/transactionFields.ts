@@ -430,6 +430,47 @@ export function shapeFromFields(fields: LooseShapeFields): TransactionShape {
   return { kind: fields.kind, realm: fields.realm, account: fields.account };
 }
 
+export const MIN_TAX_YEAR = 1900;
+export const MAX_TAX_YEAR = 2200;
+
+export function isValidTaxYear(year: number): boolean {
+  return Number.isInteger(year) && year >= MIN_TAX_YEAR && year <= MAX_TAX_YEAR;
+}
+
+/**
+ * Form-level checks for a tax row, shared by both zod schemas so the client enforces the
+ * same rules as the server (`scrubTaxFields` / `shapeFromFields`). Returns [] for non-tax
+ * kinds. `taxYear` is the raw form string (blank = default to the date's year).
+ */
+export function taxFieldIssues(f: {
+  kind: Kind;
+  realm?: Realm;
+  taxYear?: string;
+}): { path: "realm" | "taxYear"; message: string }[] {
+  if (!isTaxKind(f.kind)) return [];
+  const issues: { path: "realm" | "taxYear"; message: string }[] = [];
+  if (f.realm === "rental") issues.push({ path: "realm", message: "Tax can't be recorded against rental" });
+  if (f.taxYear && !(/^\d{4}$/.test(f.taxYear) && isValidTaxYear(Number(f.taxYear)))) {
+    issues.push({ path: "taxYear", message: `Enter a year between ${MIN_TAX_YEAR} and ${MAX_TAX_YEAR}` });
+  }
+  return issues;
+}
+
+/** Tax paid, refunded and net (paid − refunded) for one realm. Cash-basis; caller picks the date range. */
+export function summarizeTax<T extends { kind?: Kind; realm?: string; amount: number }>(
+  txns: T[],
+  realm: Side
+) {
+  const rows = txns.filter((tx) => isTaxKind(tx.kind) && tx.realm === realm);
+  let paid = 0;
+  let refunded = 0;
+  for (const tx of rows) {
+    if (tx.kind === "tax_refund") refunded += tx.amount;
+    else paid += tx.amount;
+  }
+  return { paid, refunded, net: paid - refunded, rows };
+}
+
 /**
  * Server-side guard applied on every write path: a tax row never carries a category or a
  * property (see ADR 0002), and its `taxYear` defaults to the year of `date` (the cash
@@ -445,8 +486,8 @@ export function scrubTaxFields<C, P>(
     return { categoryId: f.categoryId, propertyId: f.propertyId, taxYear: undefined };
   }
   const taxYear = f.taxYear ?? Number(f.date.slice(0, 4));
-  if (!Number.isInteger(taxYear) || taxYear < 1900 || taxYear > 2200) {
-    throw new Error("Tax year must be a four-digit year");
+  if (!isValidTaxYear(taxYear)) {
+    throw new Error(`Tax year must be between ${MIN_TAX_YEAR} and ${MAX_TAX_YEAR}`);
   }
   return { categoryId: undefined, propertyId: undefined, taxYear };
 }
