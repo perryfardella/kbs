@@ -142,3 +142,10 @@ test("server accepts exactly the years the form accepts", () => {
   for (const y of [1900, 2025, 2200]) assert.equal(scrubTaxFields(shape, { date: "2026-01-01", taxYear: y }).taxYear, y);
   for (const y of [1899, 2201, 2025.5]) assert.throws(() => scrubTaxFields(shape, { date: "2026-01-01", taxYear: y }));
 });
+
+test("taxFieldIssues rejects a blank tax year when the date's year is out of range", () => {
+  assert.equal(taxFieldIssues({ kind: "tax_payment", realm: "business", date: "0099-01-01" })[0]?.path, "date");
+  assert.deepEqual(taxFieldIssues({ kind: "tax_payment", realm: "business", date: "2026-01-01" }), []);
+  // An explicit valid year means the date's year no longer matters.
+  assert.deepEqual(taxFieldIssues({ kind: "tax_payment", realm: "business", taxYear: "2025", date: "0099-01-01" }), []);
+});

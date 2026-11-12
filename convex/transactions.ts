@@ -376,9 +376,11 @@ export const getTaxSummary = query({
       inRange(args.businessStart, args.businessEnd),
       inRange(args.personalStart, args.personalEnd),
     ]);
-    const { rows: _b, ...business } = summarizeTax(businessTxns, "business");
-    const { rows: _p, ...personal } = summarizeTax(personalTxns, "personal");
-    return { business, personal };
+    const pick = ({ paid, refunded, net }: { paid: number; refunded: number; net: number }) => ({ paid, refunded, net });
+    return {
+      business: pick(summarizeTax(businessTxns, "business")),
+      personal: pick(summarizeTax(personalTxns, "personal")),
+    };
   },
 });
 

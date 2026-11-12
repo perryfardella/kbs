@@ -79,6 +79,8 @@ export function TransactionKindFields<T extends ShapeFormValues>({ form, showPai
 
   function set<K extends keyof ShapeFormValues>(key: K, value: ShapeFormValues[K]) {
     form.setValue(path(key), value as never);
+    // setValue never re-validates, so drop a stale error once the user changes the field.
+    form.clearErrors(path(key));
   }
 
   function setKind(next: Kind) {
@@ -269,6 +271,7 @@ export function TransactionKindFields<T extends ShapeFormValues>({ form, showPai
                     value={paidDate ?? ""}
                     onChange={(e) => set("paidDate", e.target.value || undefined)}
                   />
+                  {errorText("paidDate")}
                   <p className="flex items-start gap-1.5 text-xs text-text-muted leading-relaxed">
                     <Info size={12} className="mt-0.5 shrink-0" />
                     {paidDate

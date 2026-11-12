@@ -8,12 +8,14 @@ const ymd = (d: Date) => format(d, "yyyy-MM-dd");
  */
 export function computeFiscalYear(fiscalYearEnd: string, today: Date = new Date()): { startDate: string; endDate: string } {
   const [endMonth, endDay] = fiscalYearEnd.split("-").map(Number);
+  // Clamp so a "02-29" year end lands on Feb 28 in a non-leap year instead of rolling into March.
+  const endOf = (y: number) => new Date(y, endMonth - 1, Math.min(endDay, new Date(y, endMonth, 0).getDate()));
   const day = startOfDay(today);
   const year = day.getFullYear();
   // This calendar year's end falls on or after today => we're in the year that ends this year.
-  const endYear = day <= new Date(year, endMonth - 1, endDay) ? year : year + 1;
+  const endYear = day <= endOf(year) ? year : year + 1;
   return {
-    startDate: ymd(addDays(new Date(endYear - 1, endMonth - 1, endDay), 1)),
-    endDate: ymd(new Date(endYear, endMonth - 1, endDay)),
+    startDate: ymd(addDays(endOf(endYear - 1), 1)),
+    endDate: ymd(endOf(endYear)),
   };
 }

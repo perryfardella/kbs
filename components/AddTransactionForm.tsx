@@ -286,6 +286,7 @@ export function AddTransactionForm({
       onSuccess();
     } catch (err) {
       console.error(err);
+      toast.error("Couldn't save — check the details and try again");
       setSaving(false);
     }
   }

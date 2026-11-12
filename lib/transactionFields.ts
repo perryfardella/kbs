@@ -446,12 +446,17 @@ export function taxFieldIssues(f: {
   kind: Kind;
   realm?: Realm;
   taxYear?: string;
-}): { path: "realm" | "taxYear"; message: string }[] {
+  date?: string;
+}): { path: "realm" | "taxYear" | "date"; message: string }[] {
   if (!isTaxKind(f.kind)) return [];
-  const issues: { path: "realm" | "taxYear"; message: string }[] = [];
+  const issues: { path: "realm" | "taxYear" | "date"; message: string }[] = [];
   if (f.realm === "rental") issues.push({ path: "realm", message: "Tax can't be recorded against rental" });
   if (f.taxYear && !(/^\d{4}$/.test(f.taxYear) && isValidTaxYear(Number(f.taxYear)))) {
     issues.push({ path: "taxYear", message: `Enter a year between ${MIN_TAX_YEAR} and ${MAX_TAX_YEAR}` });
+  }
+  // A blank tax year defaults to the date's year server-side, which must be a valid one.
+  if (!f.taxYear && f.date && !isValidTaxYear(Number(f.date.slice(0, 4)))) {
+    issues.push({ path: "date", message: `Enter a date between ${MIN_TAX_YEAR} and ${MAX_TAX_YEAR}` });
   }
   return issues;
 }

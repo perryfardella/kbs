@@ -23,3 +23,11 @@ test("calendar-year fiscal end", () => {
   assert.deepEqual(computeFiscalYear("12-31", at(2026, 12, 31)), { startDate: "2026-01-01", endDate: "2026-12-31" });
   assert.deepEqual(computeFiscalYear("12-31", at(2026, 1, 1)), { startDate: "2026-01-01", endDate: "2026-12-31" });
 });
+
+test("a Feb 29 year end clamps to Feb 28 in non-leap years", () => {
+  assert.deepEqual(computeFiscalYear("02-29", at(2026, 2, 28)), { startDate: "2025-03-01", endDate: "2026-02-28" });
+  assert.deepEqual(computeFiscalYear("02-29", at(2026, 3, 1)), { startDate: "2026-03-01", endDate: "2027-02-28" });
+  // Leap year keeps the real Feb 29.
+  assert.deepEqual(computeFiscalYear("02-29", at(2028, 2, 29)), { startDate: "2027-03-01", endDate: "2028-02-29" });
+  assert.deepEqual(computeFiscalYear("02-29", at(2028, 3, 1)), { startDate: "2028-03-01", endDate: "2029-02-28" });
+});
