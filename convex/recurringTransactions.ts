@@ -2,14 +2,22 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import { format, subDays } from "date-fns";
 import { computeOccurrences } from "../lib/recurrence";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
 import {
   computeShareholderLoanDelta,
+  scrubTaxFields,
   shapeFromFields,
   toStorageFields,
 } from "../lib/transactionFields";
 
 const shapeArgs = {
-  kind: v.union(v.literal("income"), v.literal("expense"), v.literal("transfer")),
+  kind: v.union(
+    v.literal("income"),
+    v.literal("expense"),
+    v.literal("transfer"),
+    v.literal("tax_payment"),
+    v.literal("tax_refund")
+  ),
   realm: v.optional(v.union(v.literal("personal"), v.literal("business"), v.literal("rental"))),
   account: v.optional(v.union(v.literal("personal"), v.literal("business"))),
   from: v.optional(v.union(v.literal("personal"), v.literal("business"))),
@@ -25,6 +33,16 @@ function assertValidPurpose(fields: { from?: "personal" | "business"; to?: "pers
   if (fields.purpose === "dividend" && !(fields.from === "business" && fields.to === "personal")) {
     throw new Error("A dividend must be a business → personal transfer");
   }
+}
+
+// A rule carries no taxYear (each applied occurrence gets its own, from its date) — only the
+// category/property scrub applies.
+function ruleScrub(
+  shape: Parameters<typeof scrubTaxFields>[0],
+  f: { categoryId?: Id<"categories">; propertyId?: Id<"properties"> }
+) {
+  const { categoryId, propertyId } = scrubTaxFields(shape, { ...f, date: "2000-01-01" });
+  return { categoryId, propertyId };
 }
 
 const recurringArgs = {
@@ -57,6 +75,7 @@ export const create = mutation({
       userId: identity.tokenIdentifier,
       ...args,
       ...toStorageFields(shape),
+      ...ruleScrub(shape, args),
       isActive: true,
     });
   },
@@ -75,7 +94,11 @@ export const update = mutation({
     const { recurringTransactionId, ...fields } = args;
     assertValidPurpose(fields);
     const shape = shapeFromFields(fields);
-    await ctx.db.patch(recurringTransactionId, { ...fields, ...toStorageFields(shape) });
+    await ctx.db.patch(recurringTransactionId, {
+      ...fields,
+      ...toStorageFields(shape),
+      ...ruleScrub(shape, fields),
+    });
   },
 });
 
@@ -144,8 +167,7 @@ export const applyOccurrence = mutation({
       description: rule.description,
       notes: args.notes ?? rule.notes,
       ...toStorageFields(shape),
-      categoryId: rule.categoryId,
-      propertyId: rule.propertyId,
+      ...scrubTaxFields(shape, { categoryId: rule.categoryId, propertyId: rule.propertyId, date: args.scheduledDate }),
       shareholderLoanDelta,
     });
 
@@ -253,8 +275,7 @@ export const autoApplyDue = internalMutation({
           description: rule.description,
           notes: rule.notes,
           ...toStorageFields(shape),
-          categoryId: rule.categoryId,
-          propertyId: rule.propertyId,
+          ...scrubTaxFields(shape, { categoryId: rule.categoryId, propertyId: rule.propertyId, date: occ.date }),
           shareholderLoanDelta,
         });
 

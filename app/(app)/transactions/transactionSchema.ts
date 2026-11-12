@@ -1,13 +1,16 @@
 import { z } from "zod";
+import { isTaxKind } from "@/lib/transactionFields";
 
 export const transactionSchema = z
   .object({
-    kind: z.enum(["income", "expense", "transfer"]),
+    kind: z.enum(["income", "expense", "transfer", "tax_payment", "tax_refund"]),
     realm: z.enum(["personal", "business", "rental"]).optional(),
     account: z.enum(["personal", "business"]).optional(),
     from: z.enum(["personal", "business"]).optional(),
     to: z.enum(["personal", "business"]).optional(),
     purpose: z.literal("dividend").optional(),
+    // Tax payments/refunds only; blank = the year of `date` (filled in server-side).
+    taxYear: z.string().optional(),
     paidDate: z.string().optional(),
     amount: z
       .string()
@@ -29,6 +32,16 @@ export const transactionSchema = z
 
     if (!data.realm) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Select who this is for", path: ["realm"] });
+      return;
+    }
+    if (isTaxKind(data.kind)) {
+      // Income tax is a personal/business matter only, and never carries a category or property.
+      if (data.realm === "rental") {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Tax can't be recorded against rental", path: ["realm"] });
+      }
+      if (data.taxYear && !/^\d{4}$/.test(data.taxYear)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Enter a four-digit year", path: ["taxYear"] });
+      }
       return;
     }
     // Rental income is never categorized ("rent received" is self-explanatory);

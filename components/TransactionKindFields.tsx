@@ -4,7 +4,17 @@ import { Info } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import { Input } from "@/components/ui/input";
 import type { FieldPath, UseFormReturn } from "react-hook-form";
-import { KIND_OPTIONS, REALM_OPTIONS, SIDE_OPTIONS, type Kind, type Realm, type Side } from "@/lib/transactionFields";
+import {
+  KIND_OPTIONS,
+  REALM_OPTIONS,
+  SIDE_OPTIONS,
+  TAX_KIND_OPTIONS,
+  TAX_REALM_OPTIONS,
+  isTaxKind,
+  type Kind,
+  type Realm,
+  type Side,
+} from "@/lib/transactionFields";
 
 // The subset of fields every transaction/recurring form shares — the piece
 // this component drives. Both TransactionFormValues and RecurringTransactionFormValues
@@ -19,6 +29,7 @@ export interface ShapeFormValues {
   to?: Side;
   purpose?: "dividend";
   paidDate?: string;
+  taxYear?: string;
   categoryId?: string;
   propertyId?: string;
 }
@@ -34,13 +45,16 @@ interface TransactionKindFieldsProps<T extends ShapeFormValues> {
   // declared-only, with a paid date added later by editing that occurrence's own
   // transaction. Defaults to true for the one-off transaction forms.
   showPaidDate?: boolean;
+  // A recurring rule carries no tax year — each applied occurrence defaults to its own
+  // date's year. Defaults to true for the one-off transaction forms.
+  showTaxYear?: boolean;
 }
 
 // react-hook-form's setValue/watch need a Path<T> literal, but this component
 // is generic over two structurally-identical-in-this-slice schemas — cast
 // through FieldPath<T> at the call sites instead of threading a second
 // generic parameter through every helper.
-export function TransactionKindFields<T extends ShapeFormValues>({ form, showPaidDate = true }: TransactionKindFieldsProps<T>) {
+export function TransactionKindFields<T extends ShapeFormValues>({ form, showPaidDate = true, showTaxYear = true }: TransactionKindFieldsProps<T>) {
   const path = <K extends keyof ShapeFormValues>(key: K) => key as unknown as FieldPath<T>;
 
   const kind = form.watch(path("kind")) as unknown as Kind;
@@ -50,6 +64,8 @@ export function TransactionKindFields<T extends ShapeFormValues>({ form, showPai
   const to = form.watch(path("to")) as unknown as Side | undefined;
   const purpose = form.watch(path("purpose")) as unknown as "dividend" | undefined;
   const paidDate = form.watch(path("paidDate")) as unknown as string | undefined;
+  const taxYear = form.watch(path("taxYear")) as unknown as string | undefined;
+  const isTax = isTaxKind(kind);
 
   function set<K extends keyof ShapeFormValues>(key: K, value: ShapeFormValues[K]) {
     form.setValue(path(key), value as never);
@@ -67,7 +83,16 @@ export function TransactionKindFields<T extends ShapeFormValues>({ form, showPai
       set("to", undefined);
       set("purpose", undefined);
       set("paidDate", undefined);
+      // Tax is never recorded against rental — drop a carried-over rental realm so the
+      // user must pick Personal or Business.
+      if (isTaxKind(next) && realm === "rental") set("realm", undefined);
     }
+    if (!isTaxKind(next)) set("taxYear", "");
+  }
+
+  // Payment <-> Refund only flips the kind; every other field stays as entered.
+  function setTaxKind(next: Kind) {
+    set("kind", next);
   }
 
   function setRealm(next: Realm) {
@@ -99,18 +124,35 @@ export function TransactionKindFields<T extends ShapeFormValues>({ form, showPai
               {opt.label}
             </Toggle>
           ))}
+          {/* Tax is one toggle here; Payment/Refund is its sub-choice below. */}
+          <Toggle pressed={isTax} onPressedChange={() => !isTax && setKind("tax_payment")} className="flex-1">
+            Tax
+          </Toggle>
         </div>
       </div>
+
+      {isTax && (
+        <div className="space-y-2">
+          <label className="block text-xs font-medium text-text-muted uppercase tracking-wide">Payment or refund</label>
+          <div className="flex gap-2">
+            {TAX_KIND_OPTIONS.map((opt) => (
+              <Toggle key={opt.value} pressed={kind === opt.value} onPressedChange={() => setTaxKind(opt.value)} className="flex-1">
+                {opt.label}
+              </Toggle>
+            ))}
+          </div>
+        </div>
+      )}
 
       {kind !== "transfer" ? (
         <>
           {/* Realm */}
           <div className="space-y-2">
             <label className="block text-xs font-medium text-text-muted uppercase tracking-wide">
-              {kind === "income" ? "Who earned it" : "Who's it for"}
+              {isTax ? "Whose tax is it?" : kind === "income" ? "Who earned it" : "Who's it for"}
             </label>
             <div className="flex gap-2 overflow-x-auto pb-1">
-              {REALM_OPTIONS.map((opt) => (
+              {(isTax ? TAX_REALM_OPTIONS : REALM_OPTIONS).map((opt) => (
                 <Toggle key={opt.value} pressed={realm === opt.value} onPressedChange={() => setRealm(opt.value)}>
                   {opt.label}
                 </Toggle>
@@ -139,9 +181,30 @@ export function TransactionKindFields<T extends ShapeFormValues>({ form, showPai
               {effectiveAccount !== realm && (
                 <p className="flex items-start gap-1.5 text-xs text-text-muted leading-relaxed">
                   <Info size={12} className="mt-0.5 shrink-0" />
-                  Money moved through the {effectiveAccount} account, even though this is {realm} {kind}.
+                  Money moved through the {effectiveAccount} account, even though this is {realm} {isTax ? kind.replace("_", " ") : kind}.
                 </p>
               )}
+            </div>
+          )}
+
+          {isTax && showTaxYear && (
+            <div className="space-y-1.5">
+              <label htmlFor="tax-year" className="block text-xs font-medium text-text-muted uppercase tracking-wide">
+                Tax year (optional)
+              </label>
+              <Input
+                id="tax-year"
+                inputMode="numeric"
+                maxLength={4}
+                placeholder="Defaults to the year of the date"
+                className="font-mono"
+                value={taxYear ?? ""}
+                onChange={(e) => set("taxYear", e.target.value.replace(/\D/g, ""))}
+              />
+              <p className="flex items-start gap-1.5 text-xs text-text-muted leading-relaxed">
+                <Info size={12} className="mt-0.5 shrink-0" />
+                The year this tax relates to — e.g. 2025 for a balance paid in April 2026. Reports still group by the date paid.
+              </p>
             </div>
           )}
         </>

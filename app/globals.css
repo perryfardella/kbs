@@ -14,6 +14,7 @@
   --badge-business: #6d28d9;
   --badge-transfer: #9a3412;
   --badge-rental: #065f46;
+  --badge-tax: #475569;
   --loan-you: oklch(46% 0.08 45); /* warm sienna — "owed to you" / cash from personal */
   --loan-corp: oklch(40% 0.08 255); /* deep navy — "owed to corp" / cash from business */
 
@@ -51,6 +52,7 @@
   --color-badge-business: var(--badge-business);
   --color-badge-transfer: var(--badge-transfer);
   --color-badge-rental: var(--badge-rental);
+  --color-badge-tax: var(--badge-tax);
   --color-loan-you: var(--loan-you);
   --color-loan-corp: var(--loan-corp);
   --font-display: var(--font-playfair);

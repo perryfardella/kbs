@@ -34,7 +34,7 @@ import {
   type TransactionFormValues,
 } from "@/app/(app)/transactions/transactionSchema";
 import { TransactionKindFields } from "@/components/TransactionKindFields";
-import { getLoanImpact, tryShapeFromFields } from "@/lib/transactionFields";
+import { getLoanImpact, isTaxKind, tryShapeFromFields } from "@/lib/transactionFields";
 
 const MAX_RECEIPT_PHOTOS = 5;
 
@@ -129,6 +129,7 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
       description: transaction.description,
       categoryId: transaction.categoryId ?? "",
       propertyId: transaction.propertyId ?? "",
+      taxYear: transaction.taxYear !== undefined ? String(transaction.taxYear) : "",
       notes: transaction.notes ?? "",
     },
   });
@@ -137,8 +138,8 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
   const realm = form.watch("realm");
   const account = form.watch("account");
   // Mirrors categoryRealmFor: no category for transfers or (uncategorized) rental income.
-  const showCategory = kind !== "transfer" && !!realm && !(kind === "income" && realm === "rental");
-  const showProperty = kind !== "transfer" && realm === "rental";
+  const showCategory = kind !== "transfer" && !isTaxKind(kind) && !!realm && !(kind === "income" && realm === "rental");
+  const showProperty = kind !== "transfer" && !isTaxKind(kind) && realm === "rental";
   const propertyRequired = showProperty;
 
   const filteredCategories = categories.filter((cat) => {
@@ -221,6 +222,7 @@ function EditTransactionFormInner({ transactionId, transaction, categories, onSu
         paidDate: data.paidDate || undefined,
         categoryId: data.categoryId ? (data.categoryId as Id<"categories">) : undefined,
         propertyId: data.propertyId ? (data.propertyId as Id<"properties">) : undefined,
+        taxYear: isTaxKind(data.kind) && data.taxYear ? parseInt(data.taxYear, 10) : undefined,
         receiptStorageIds: receiptStorageIds.length > 0 ? receiptStorageIds : undefined,
       });
       toast.success("Changes saved");

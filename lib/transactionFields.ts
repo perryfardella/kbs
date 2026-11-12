@@ -8,12 +8,21 @@
  * `convex/recurringTransactions.ts` already imports `lib/recurrence.ts`.
  */
 
-export type Kind = "income" | "expense" | "transfer";
+export type Kind = "income" | "expense" | "transfer" | "tax_payment" | "tax_refund";
+export type TaxKind = "tax_payment" | "tax_refund";
 export type Realm = "personal" | "business" | "rental";
 export type Side = "personal" | "business";
 export type Purpose = "dividend";
 
-export const KINDS: readonly Kind[] = ["income", "expense", "transfer"];
+export const KINDS: readonly Kind[] = ["income", "expense", "transfer", "tax_payment", "tax_refund"];
+
+export function isTaxKind(kind: Kind | undefined): kind is TaxKind {
+  return kind === "tax_payment" || kind === "tax_refund";
+}
+
+export function assertNever(x: never): never {
+  throw new Error(`Unhandled transaction kind: ${JSON.stringify(x)}`);
+}
 export const REALMS: readonly Realm[] = ["personal", "business", "rental"];
 export const SIDES: readonly Side[] = ["personal", "business"];
 export const PURPOSES: readonly Purpose[] = ["dividend"];
@@ -23,6 +32,18 @@ export interface IncomeExpenseShape {
   realm: Realm;
   /** Which account the cash actually moved through. Only meaningful when
    * `realm !== "rental"`; defaults to `realm` when omitted. */
+  account?: Side;
+}
+
+/**
+ * Income tax paid to (or refunded by) the tax authority — see
+ * docs/adr/0002-tax-payment-and-refund-kinds.md. Neither income nor expense. `realm` is
+ * whose tax it is (never rental); `account` is which side's cash moved. Loan effect:
+ * tax_payment behaves like expense(realm, account), tax_refund like income(realm, account).
+ */
+export interface TaxShape {
+  kind: TaxKind;
+  realm: Side;
   account?: Side;
 }
 
@@ -44,7 +65,7 @@ export interface TransferShape {
   dividendPaid?: boolean;
 }
 
-export type TransactionShape = IncomeExpenseShape | TransferShape;
+export type TransactionShape = IncomeExpenseShape | TransferShape | TaxShape;
 
 function transferDelta(from: Side, to: Side, amount: number): number {
   if (from === to) return 0;
@@ -74,9 +95,16 @@ export function computeShareholderLoanDelta(shape: TransactionShape, amount: num
   const realm = shape.realm;
   if (realm === "rental") return 0;
   const account: Side = shape.account ?? realm;
-  return shape.kind === "expense"
-    ? transferDelta(account, realm, amount)
-    : transferDelta(realm, account, amount);
+  switch (shape.kind) {
+    case "expense":
+    case "tax_payment":
+      return transferDelta(account, realm, amount);
+    case "income":
+    case "tax_refund":
+      return transferDelta(realm, account, amount);
+    default:
+      return assertNever(shape);
+  }
 }
 
 export type CashDirection = "you-to-corp" | "corp-to-you" | "none";
@@ -105,7 +133,16 @@ export function deriveCashDirection(shape: TransactionShape): CashDirection {
   }
   const realm = shape.realm as Side;
   const account = (shape.account ?? shape.realm) as Side;
-  return directionFrom(shape.kind === "expense" ? account : realm);
+  switch (shape.kind) {
+    case "expense":
+    case "tax_payment":
+      return directionFrom(account);
+    case "income":
+    case "tax_refund":
+      return directionFrom(realm);
+    default:
+      return assertNever(shape);
+  }
 }
 
 /** Same as shapeFromFields, but returns null instead of throwing — for UI code reading a form mid-fill-out. */
@@ -290,6 +327,18 @@ export const KIND_OPTIONS: { value: Kind; label: string }[] = [
   { value: "transfer", label: "Transfer" },
 ];
 
+/** Tax is one "Type" toggle in the forms; this is its Payment/Refund sub-choice. */
+export const TAX_KIND_OPTIONS: { value: TaxKind; label: string }[] = [
+  { value: "tax_payment", label: "Payment" },
+  { value: "tax_refund", label: "Refund" },
+];
+
+/** Realm choices for a tax row — whose tax it is. Never rental. */
+export const TAX_REALM_OPTIONS: { value: Side; label: string }[] = [
+  { value: "personal", label: "Personal" },
+  { value: "business", label: "Business" },
+];
+
 export const REALM_OPTIONS: { value: Realm; label: string }[] = [
   { value: "personal", label: "Personal" },
   { value: "business", label: "Business" },
@@ -313,19 +362,20 @@ export const PURPOSE_OPTIONS: { value: Purpose; label: string }[] = [
  * table where `rental_income` mapped to `null` but `rental_expense` to `"rental"`.
  */
 export function categoryRealmFor(shape: TransactionShape): Realm | null {
-  if (shape.kind === "transfer") return null;
+  if (shape.kind === "transfer" || isTaxKind(shape.kind)) return null;
   if (shape.kind === "income" && shape.realm === "rental") return null;
   return shape.realm;
 }
 
 /** Whether this shape must be tagged to a property. */
 export function requiresProperty(shape: TransactionShape): boolean {
-  return shape.kind !== "transfer" && shape.realm === "rental";
+  return shape.kind !== "transfer" && !isTaxKind(shape.kind) && shape.realm === "rental";
 }
 
-export type BadgeVariant = "personal" | "business" | "rental" | "transfer";
+export type BadgeVariant = "personal" | "business" | "rental" | "transfer" | "tax";
 
 export function badgeVariantFor(shape: TransactionShape): BadgeVariant {
+  if (isTaxKind(shape.kind)) return "tax";
   return shape.kind === "transfer" ? "transfer" : shape.realm;
 }
 
@@ -373,7 +423,32 @@ export function shapeFromFields(fields: LooseShapeFields): TransactionShape {
     };
   }
   if (!fields.realm) throw new Error(`${fields.kind} is missing a realm`);
+  if (isTaxKind(fields.kind)) {
+    if (fields.realm === "rental") throw new Error("Tax can't be recorded against the rental realm");
+    return { kind: fields.kind, realm: fields.realm, account: fields.account };
+  }
   return { kind: fields.kind, realm: fields.realm, account: fields.account };
+}
+
+/**
+ * Server-side guard applied on every write path: a tax row never carries a category or a
+ * property (see ADR 0002), and its `taxYear` defaults to the year of `date` (the cash
+ * basis, matching how reports group). Non-tax rows never carry a `taxYear`. Don't rely on
+ * the client having cleared these — an Edit-form kind switch, an API caller or a recurring
+ * rule could all hand us stale values.
+ */
+export function scrubTaxFields<C, P>(
+  shape: TransactionShape,
+  f: { categoryId?: C; propertyId?: P; date: string; taxYear?: number }
+): { categoryId: C | undefined; propertyId: P | undefined; taxYear: number | undefined } {
+  if (!isTaxKind(shape.kind)) {
+    return { categoryId: f.categoryId, propertyId: f.propertyId, taxYear: undefined };
+  }
+  const taxYear = f.taxYear ?? Number(f.date.slice(0, 4));
+  if (!Number.isInteger(taxYear) || taxYear < 1900 || taxYear > 2200) {
+    throw new Error("Tax year must be a four-digit year");
+  }
+  return { categoryId: undefined, propertyId: undefined, taxYear };
 }
 
 /** Human-readable label for a transaction shape — replaces TYPE_LABELS and the duplicated typeConfig maps. */
@@ -383,12 +458,17 @@ export function describeTransactionType(shape: TransactionShape): string {
     if (shape.from === shape.to) return "Transfer";
     return `${SIDE_LABEL[shape.from]} → ${SIDE_LABEL[shape.to]} Transfer`;
   }
-  const kindLabel = shape.kind === "income" ? "Income" : "Expense";
+  const kindLabel = {
+    income: "Income",
+    expense: "Expense",
+    tax_payment: "Tax Payment",
+    tax_refund: "Tax Refund",
+  }[shape.kind];
   const base = `${REALM_LABEL[shape.realm]} ${kindLabel}`;
   if (shape.realm === "rental") return base;
   const account = shape.account ?? shape.realm;
   if (account === shape.realm) return base;
-  return shape.kind === "expense"
+  return shape.kind === "expense" || shape.kind === "tax_payment"
     ? `${base} (${SIDE_LABEL[account]} Pay)`
     : `${base} (via ${SIDE_LABEL[account]})`;
 }

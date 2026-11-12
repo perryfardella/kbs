@@ -19,8 +19,9 @@ import { EditRecurringDrawer } from "@/components/EditRecurringDrawer";
 import { ApplyOccurrenceDrawer } from "@/components/ApplyOccurrenceDrawer";
 import { UpcomingList } from "@/components/UpcomingList";
 import { TransactionRow } from "@/components/TransactionRow";
+import { isTaxKind } from "@/lib/transactionFields";
 
-type FilterChip = "all" | "personal" | "business" | "transfers" | "property";
+type FilterChip = "all" | "personal" | "business" | "transfers" | "property" | "tax";
 
 function formatCAD(amount: number): string {
   return new Intl.NumberFormat("en-CA", {
@@ -65,6 +66,7 @@ function HistoryTab() {
     if (chip === "personal") return results.filter((tx) => tx.kind !== "transfer" && tx.realm === "personal");
     if (chip === "business") return results.filter((tx) => tx.kind !== "transfer" && tx.realm === "business");
     if (chip === "property") return results.filter((tx) => tx.realm === "rental");
+    if (chip === "tax") return results.filter((tx) => isTaxKind(tx.kind));
     return results.filter((tx) => tx.kind === "transfer");
   }, [results, chip]);
 
@@ -84,6 +86,7 @@ function HistoryTab() {
     { value: "business", label: "Business" },
     { value: "transfers", label: "Transfers" },
     { value: "property", label: "Property" },
+    { value: "tax", label: "Tax" },
   ];
 
   const isLoading = status === "LoadingFirstPage";

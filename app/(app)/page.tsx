@@ -13,6 +13,7 @@ import { AlertTriangle, RefreshCw, Building2, ChevronRight } from "lucide-react"
 import { computeOccurrences } from "@/lib/recurrence";
 import { format } from "date-fns";
 import { TransactionRow } from "@/components/TransactionRow";
+import { computeFiscalYear } from "@/lib/fiscalYear";
 
 function formatCAD(amount: number): string {
   return new Intl.NumberFormat("en-CA", {
@@ -44,6 +45,14 @@ export default function DashboardPage() {
     startDate: startOfMonth,
     endDate: endOfMonth,
   });
+  // Business tax runs on the corporation's fiscal year, personal tax on the calendar year.
+  const fiscalYear = settings?.fiscalYearEnd ? computeFiscalYear(settings.fiscalYearEnd) : undefined;
+  const taxSummary = useQuery(
+    api.transactions.getTaxSummary,
+    fiscalYear
+      ? { businessStart: fiscalYear.startDate, businessEnd: fiscalYear.endDate, personalStart: `${year}-01-01`, personalEnd: `${year}-12-31` }
+      : "skip"
+  );
   const { results: recentTxns, status } = usePaginatedQuery(
     api.transactions.list,
     {},
@@ -168,6 +177,21 @@ export default function DashboardPage() {
             )}
           </Card>
         </div>
+
+        {/* Income tax — neither income nor expense, so it sits apart from the stats above.
+            Hidden until some tax has been recorded. */}
+        {taxSummary && (taxSummary.business.paid + taxSummary.business.refunded + taxSummary.personal.paid + taxSummary.personal.refunded > 0) && (
+          <div className="grid grid-cols-2 gap-3">
+            <Card className="p-4 space-y-1">
+              <p className="text-xs text-text-muted font-medium">Business Tax Paid · Fiscal Year</p>
+              <p className="font-mono text-lg font-semibold text-text-primary text-right">{formatCAD(taxSummary.business.net)}</p>
+            </Card>
+            <Card className="p-4 space-y-1">
+              <p className="text-xs text-text-muted font-medium">Personal Tax Paid · {year}</p>
+              <p className="font-mono text-lg font-semibold text-text-primary text-right">{formatCAD(taxSummary.personal.net)}</p>
+            </Card>
+          </div>
+        )}
 
         {/* Properties */}
         {properties !== undefined && properties.length > 0 && (
