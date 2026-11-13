@@ -33,11 +33,13 @@ import {
 } from "@/app/(app)/transactions/recurringTransactionSchema";
 import { TransactionKindFields } from "@/components/TransactionKindFields";
 import { isTaxKind } from "@/lib/transactionFields";
+import { quarterlyMonths } from "@/lib/recurrence";
 
 const FREQUENCY_OPTIONS = [
   { value: "weekly",   label: "Weekly" },
   { value: "biweekly", label: "Every 2 weeks" },
   { value: "monthly",  label: "Monthly" },
+  { value: "quarterly", label: "Every 3 months" },
   { value: "yearly",   label: "Yearly" },
 ] as const;
 
@@ -133,6 +135,7 @@ function EditRecurringFormInner({ recurringTransactionId, rule, categories, onSu
   const kind = form.watch("kind");
   const realm = form.watch("realm");
   const frequency = form.watch("frequency");
+  const startDate = form.watch("startDate");
   const anchorDay = form.watch("anchorDay");
   const anchorDate = form.watch("anchorDate");
 
@@ -347,7 +350,7 @@ function EditRecurringFormInner({ recurringTransactionId, rule, categories, onSu
             />
           )}
 
-          {frequency === "monthly" && (
+          {(frequency === "monthly" || frequency === "quarterly") && (
             <FormField
               control={form.control}
               name="anchorDay"
@@ -438,11 +441,16 @@ function EditRecurringFormInner({ recurringTransactionId, rule, categories, onSu
             render={({ field }) => (
               <FormItem>
                 <FormLabel variant="muted">
-                  {frequency === "biweekly" ? "First occurrence" : "Starting from"}
+                  {frequency === "biweekly" || frequency === "quarterly" ? "First occurrence" : "Starting from"}
                 </FormLabel>
                 <FormControl>
                   <Input type="date" className="font-mono appearance-none" {...field} />
                 </FormControl>
+                {frequency === "quarterly" && quarterlyMonths(startDate) && (
+                  <p className="text-xs text-text-muted leading-relaxed">
+                    Repeats in {quarterlyMonths(startDate)}.
+                  </p>
+                )}
                 <FormMessage />
               </FormItem>
             )}

@@ -133,9 +133,10 @@ export default defineSchema({
       v.literal("weekly"),
       v.literal("biweekly"),
       v.literal("monthly"),
+      v.literal("quarterly"),
       v.literal("yearly")
     ),
-    // weekly/biweekly: 0–6 (day of week, 0=Sun); monthly: 1–31 (day of month)
+    // weekly/biweekly: 0–6 (day of week, 0=Sun); monthly/quarterly: 1–31 (day of month)
     anchorDay: v.optional(v.number()),
     // yearly only: "MM-DD"
     anchorDate: v.optional(v.string()),
