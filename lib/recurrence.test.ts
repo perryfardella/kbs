@@ -79,3 +79,9 @@ test("monthly: more cases pinned (anchor day, endDate, fromDate after start)", (
   assert.deepEqual(dates({ frequency: "monthly", startDate: "2026-01-15" }, "2026-02-16", 2), ["2026-03-15", "2026-04-15"]);
   assert.deepEqual(dates({ frequency: "monthly", startDate: "2026-01-15" }, "2025-06-01", 1), ["2026-01-15"]);
 });
+
+test("quarterly: end date is inclusive, phase holds years later, Feb 29 start", () => {
+  assert.deepEqual(dates(q("2026-03-15", { endDate: "2026-06-15" }), "2026-01-01", 10), ["2026-03-15", "2026-06-15"]);
+  assert.deepEqual(dates(q("2024-03-15"), "2030-01-01", 2), ["2030-03-15", "2030-06-15"]);
+  assert.deepEqual(dates(q("2024-02-29"), "2025-01-01", 2), ["2025-02-28", "2025-05-29"]);
+});

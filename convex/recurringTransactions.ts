@@ -35,6 +35,16 @@ function assertValidPurpose(fields: { from?: "personal" | "business"; to?: "pers
   }
 }
 
+// The form's zod schema checks this too, but a direct API call must not store a NaN/out-of-range
+// day: it would make computeOccurrences throw inside autoApplyDue and abort the cron for everyone.
+function assertValidAnchorDay(f: { frequency: string; anchorDay?: number }) {
+  if (f.anchorDay === undefined) return;
+  const [min, max] = f.frequency === "weekly" ? [0, 6] : [1, 31];
+  if (!Number.isInteger(f.anchorDay) || f.anchorDay < min || f.anchorDay > max) {
+    throw new Error(`anchorDay must be a whole number from ${min} to ${max}`);
+  }
+}
+
 // A rule carries no taxYear (each applied occurrence gets its own, from its date) — only the
 // category/property scrub applies.
 function ruleScrub(
@@ -71,6 +81,7 @@ export const create = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthenticated");
     assertValidPurpose(args);
+    assertValidAnchorDay(args);
     const shape = shapeFromFields(args);
     return await ctx.db.insert("recurringTransactions", {
       userId: identity.tokenIdentifier,
@@ -94,6 +105,7 @@ export const update = mutation({
     if (!rule || rule.userId !== identity.tokenIdentifier) throw new Error("Not found");
     const { recurringTransactionId, ...fields } = args;
     assertValidPurpose(fields);
+    assertValidAnchorDay(fields);
     const shape = shapeFromFields(fields);
     await ctx.db.patch(recurringTransactionId, {
       ...fields,
