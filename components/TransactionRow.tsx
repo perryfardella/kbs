@@ -13,6 +13,7 @@ const BORDER_BY_VARIANT: Record<string, string> = {
   business: "border-badge-business",
   transfer: "border-badge-transfer",
   rental: "border-badge-rental",
+  tax: "border-badge-tax",
 };
 
 function formatCAD(amount: number): string {
@@ -29,7 +30,7 @@ function formatShortDate(dateStr: string): string {
 }
 
 interface TransactionRowProps {
-  tx: LooseShapeFields & { _id: string; date: string; description: string; amount: number };
+  tx: LooseShapeFields & { taxYear?: number; _id: string; date: string; description: string; amount: number };
   href: string;
 }
 
@@ -55,7 +56,7 @@ export function TransactionRow({ tx, href }: TransactionRowProps) {
             </span>
           </div>
           <div className="flex items-center justify-between gap-2.5">
-            <Badge variant={variant}>{label}</Badge>
+            <Badge variant={variant}>{tx.taxYear !== undefined && variant === "tax" ? `${label} · ${tx.taxYear}` : label}</Badge>
             <span className="shrink-0 font-mono text-xs text-text-muted">
               {formatShortDate(tx.date)}
             </span>

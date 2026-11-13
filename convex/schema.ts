@@ -20,7 +20,13 @@ const transactionTypeValidator = v.union(
 // been verified complete on prod for `transactions` (checked 2026-08-20 — every row has
 // `kind` set). `type` above is kept (now optional) as a deprecated fallback until it's
 // removed in a follow-up cleanup.
-const kindValidator = v.union(v.literal("income"), v.literal("expense"), v.literal("transfer"));
+const kindValidator = v.union(
+  v.literal("income"),
+  v.literal("expense"),
+  v.literal("transfer"),
+  v.literal("tax_payment"), // income tax paid — neither income nor expense; see docs/adr/0002
+  v.literal("tax_refund")
+);
 const realmValidator = v.union(
   v.literal("personal"),
   v.literal("business"),
@@ -76,6 +82,9 @@ export default defineSchema({
     from: v.optional(sideValidator), // transfer only
     to: v.optional(sideValidator), // transfer only
     purpose: v.optional(purposeValidator), // transfer only
+    // tax_payment / tax_refund only — the year the tax relates to (informational; reports
+    // stay cash-basis by `date`). Defaults to the year of `date`; see scrubTaxFields.
+    taxYear: v.optional(v.number()),
     // deprecated — superseded by paidDate below; migration verified complete on prod
     // (every dividend row has paidDate set iff dividendPaid was true), kept as fallback
     // until removed in a follow-up cleanup.
@@ -124,9 +133,10 @@ export default defineSchema({
       v.literal("weekly"),
       v.literal("biweekly"),
       v.literal("monthly"),
+      v.literal("quarterly"),
       v.literal("yearly")
     ),
-    // weekly/biweekly: 0–6 (day of week, 0=Sun); monthly: 1–31 (day of month)
+    // weekly/biweekly: 0–6 (day of week, 0=Sun); monthly/quarterly: 1–31 (day of month)
     anchorDay: v.optional(v.number()),
     // yearly only: "MM-DD"
     anchorDate: v.optional(v.string()),

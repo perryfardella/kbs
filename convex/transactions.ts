@@ -5,6 +5,8 @@ import { Id } from "./_generated/dataModel";
 import {
   computeShareholderLoanDelta,
   expandLoanLedgerRows,
+  scrubTaxFields,
+  summarizeTax,
   shapeFromFields,
   toStorageFields,
 } from "../lib/transactionFields";
@@ -24,7 +26,13 @@ const transactionTypeValidator = v.union(
 );
 
 const shapeArgs = {
-  kind: v.union(v.literal("income"), v.literal("expense"), v.literal("transfer")),
+  kind: v.union(
+    v.literal("income"),
+    v.literal("expense"),
+    v.literal("transfer"),
+    v.literal("tax_payment"),
+    v.literal("tax_refund")
+  ),
   realm: v.optional(v.union(v.literal("personal"), v.literal("business"), v.literal("rental"))),
   account: v.optional(v.union(v.literal("personal"), v.literal("business"))),
   from: v.optional(v.union(v.literal("personal"), v.literal("business"))),
@@ -70,6 +78,7 @@ export const create = mutation({
     ...shapeArgs,
     categoryId: v.optional(v.id("categories")),
     propertyId: v.optional(v.id("properties")),
+    taxYear: v.optional(v.number()),
     receiptStorageIds: v.optional(v.array(v.id("_storage"))),
   },
   handler: async (ctx, args) => {
@@ -87,8 +96,7 @@ export const create = mutation({
       notes: args.notes,
       ...toStorageFields(shape),
       paidDate: paidDateFor(shape, args.paidDate),
-      categoryId: args.categoryId,
-      propertyId: args.propertyId,
+      ...scrubTaxFields(shape, args),
       receiptStorageIds: args.receiptStorageIds,
       shareholderLoanDelta,
     });
@@ -105,6 +113,7 @@ export const update = mutation({
     ...shapeArgs,
     categoryId: v.optional(v.id("categories")),
     propertyId: v.optional(v.id("properties")),
+    taxYear: v.optional(v.number()),
     receiptStorageIds: v.optional(v.array(v.id("_storage"))),
   },
   handler: async (ctx, args) => {
@@ -124,8 +133,7 @@ export const update = mutation({
       notes: args.notes,
       ...toStorageFields(shape),
       paidDate: paidDateFor(shape, args.paidDate),
-      categoryId: args.categoryId,
-      propertyId: args.propertyId,
+      ...scrubTaxFields(shape, args),
       receiptStorageIds: args.receiptStorageIds,
       shareholderLoanDelta,
     });
@@ -345,6 +353,37 @@ async function joinCategoryNames<T extends { categoryId?: Id<"categories"> }>(
   }));
 }
 
+// Dashboard card: business tax over the corporation's fiscal year, personal tax over the
+// calendar year — the two filers run on different years. Both are cash-basis "paid in period".
+export const getTaxSummary = query({
+  args: {
+    businessStart: v.string(),
+    businessEnd: v.string(),
+    personalStart: v.string(),
+    personalEnd: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+    const inRange = (start: string, end: string) =>
+      ctx.db
+        .query("transactions")
+        .withIndex("by_user_date", (q) =>
+          q.eq("userId", identity.tokenIdentifier).gte("date", start).lte("date", end)
+        )
+        .collect();
+    const [businessTxns, personalTxns] = await Promise.all([
+      inRange(args.businessStart, args.businessEnd),
+      inRange(args.personalStart, args.personalEnd),
+    ]);
+    const pick = ({ paid, refunded, net }: { paid: number; refunded: number; net: number }) => ({ paid, refunded, net });
+    return {
+      business: pick(summarizeTax(businessTxns, "business")),
+      personal: pick(summarizeTax(personalTxns, "personal")),
+    };
+  },
+});
+
 export const getExpenseBreakdown = query({
   args: {
     startDate: v.string(),
@@ -382,6 +421,11 @@ export const getExpenseBreakdown = query({
     const businessIncomeRows = await joinCategoryNames(ctx, identity.tokenIdentifier, businessIncomeTxns);
 
     return {
+      // Income tax is neither income nor expense — kept out of every total above.
+      tax: {
+        personal: summarizeTax(txns, "personal"),
+        business: summarizeTax(txns, "business"),
+      },
       personal: summarizeByCategory(personalRows),
       business: summarizeByCategory(businessRows),
       personalIncome: summarizeByCategory(personalIncomeRows),

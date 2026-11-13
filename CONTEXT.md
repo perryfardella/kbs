@@ -8,7 +8,10 @@ Personal and business finance tracking for a shareholder who moves money between
 A single recorded movement or attribution of money — an income, an expense, or a transfer between accounts.
 
 **Kind**:
-The top-level shape of a transaction: `income`, `expense`, or `transfer`. Distinct from Category, which classifies what the money was for within a kind.
+The top-level shape of a transaction: `income`, `expense`, `transfer`, `tax_payment`, or `tax_refund`. Distinct from Category, which classifies what the money was for within a kind.
+
+**Tax payment / Tax refund**:
+Income tax paid to (or refunded by) the tax authority, for the business or for the individual — a settlement of a liability, so neither income nor expense. Never counted in income, expenses or profit; reports show it on its own line (paid, refunded, net). Has a Realm (`personal` or `business`, never `rental`) saying whose tax it is, and an Account saying which side's cash moved; carries no Category or Property. An optional `taxYear` records the year the tax relates to, while reports stay cash-basis by date. Moves the Shareholder Loan exactly as an expense (payment) or income (refund) with the same Realm and Account would. GST/HST, payroll remittances and rental property tax are out of scope — property tax stays an ordinary rental expense.
 _Avoid_: Type (the legacy flat `type` enum this replaces), Category
 
 **Realm** (`for`):

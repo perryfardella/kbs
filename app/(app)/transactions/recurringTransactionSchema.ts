@@ -1,8 +1,9 @@
 import { z } from "zod";
+import { isTaxKind, taxFieldIssues } from "@/lib/transactionFields";
 
 export const recurringTransactionSchema = z
   .object({
-    kind: z.enum(["income", "expense", "transfer"]),
+    kind: z.enum(["income", "expense", "transfer", "tax_payment", "tax_refund"]),
     realm: z.enum(["personal", "business", "rental"]).optional(),
     account: z.enum(["personal", "business"]).optional(),
     from: z.enum(["personal", "business"]).optional(),
@@ -16,8 +17,8 @@ export const recurringTransactionSchema = z
     categoryId: z.string().optional(),
     propertyId: z.string().optional(),
     notes: z.string().optional(),
-    frequency: z.enum(["weekly", "biweekly", "monthly", "yearly"]),
-    // weekly/biweekly: 0–6 (day of week); monthly: 1–31
+    frequency: z.enum(["weekly", "biweekly", "monthly", "quarterly", "yearly"]),
+    // weekly/biweekly: 0–6 (day of week); monthly/quarterly: 1–31
     anchorDay: z.number().optional(),
     // yearly: "MM-DD"
     anchorDate: z.string().optional(),
@@ -31,6 +32,10 @@ export const recurringTransactionSchema = z
       }
     } else if (!data.realm) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Select who this is for", path: ["realm"] });
+    } else if (isTaxKind(data.kind)) {
+      for (const issue of taxFieldIssues(data)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: issue.message, path: [issue.path] });
+      }
     } else {
       const needsCategory = !(data.kind === "income" && data.realm === "rental");
       if (needsCategory && !data.categoryId) {
@@ -56,7 +61,7 @@ export const recurringTransactionSchema = z
         path: ["anchorDay"],
       });
     }
-    if (data.frequency === "monthly" && (data.anchorDay === undefined || data.anchorDay < 1 || data.anchorDay > 31)) {
+    if ((data.frequency === "monthly" || data.frequency === "quarterly") && (data.anchorDay === undefined || data.anchorDay < 1 || data.anchorDay > 31)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Enter a day between 1 and 31",

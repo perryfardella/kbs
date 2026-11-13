@@ -32,11 +32,14 @@ import {
   type RecurringTransactionFormValues,
 } from "@/app/(app)/transactions/recurringTransactionSchema";
 import { TransactionKindFields } from "@/components/TransactionKindFields";
+import { isTaxKind } from "@/lib/transactionFields";
+import { quarterlyMonths } from "@/lib/recurrence";
 
 const FREQUENCY_OPTIONS = [
   { value: "weekly",   label: "Weekly" },
   { value: "biweekly", label: "Every 2 weeks" },
   { value: "monthly",  label: "Monthly" },
+  { value: "quarterly", label: "Every 3 months" },
   { value: "yearly",   label: "Yearly" },
 ] as const;
 
@@ -132,12 +135,13 @@ function EditRecurringFormInner({ recurringTransactionId, rule, categories, onSu
   const kind = form.watch("kind");
   const realm = form.watch("realm");
   const frequency = form.watch("frequency");
+  const startDate = form.watch("startDate");
   const anchorDay = form.watch("anchorDay");
   const anchorDate = form.watch("anchorDate");
 
   // Mirrors categoryRealmFor: no category for transfers or (uncategorized) rental income.
-  const showCategory = kind !== "transfer" && !!realm && !(kind === "income" && realm === "rental");
-  const showProperty = kind !== "transfer" && realm === "rental";
+  const showCategory = kind !== "transfer" && !isTaxKind(kind) && !!realm && !(kind === "income" && realm === "rental");
+  const showProperty = kind !== "transfer" && !isTaxKind(kind) && realm === "rental";
   const propertyRequired = showProperty;
 
   const filteredCategories = categories.filter((cat) => {
@@ -187,7 +191,7 @@ function EditRecurringFormInner({ recurringTransactionId, rule, categories, onSu
       <form onSubmit={form.handleSubmit(handleSave)}>
         <div className="px-4 pt-2 space-y-3 pb-2">
           {/* Type Selector */}
-          <TransactionKindFields form={form} showPaidDate={false} />
+          <TransactionKindFields form={form} showPaidDate={false} showTaxYear={false} />
 
           {/* Amount */}
           <FormField
@@ -346,7 +350,7 @@ function EditRecurringFormInner({ recurringTransactionId, rule, categories, onSu
             />
           )}
 
-          {frequency === "monthly" && (
+          {(frequency === "monthly" || frequency === "quarterly") && (
             <FormField
               control={form.control}
               name="anchorDay"
@@ -437,11 +441,16 @@ function EditRecurringFormInner({ recurringTransactionId, rule, categories, onSu
             render={({ field }) => (
               <FormItem>
                 <FormLabel variant="muted">
-                  {frequency === "biweekly" ? "First occurrence" : "Starting from"}
+                  {frequency === "biweekly" || frequency === "quarterly" ? "First occurrence" : "Starting from"}
                 </FormLabel>
                 <FormControl>
                   <Input type="date" className="font-mono appearance-none" {...field} />
                 </FormControl>
+                {frequency === "quarterly" && quarterlyMonths(startDate) && (
+                  <p className="text-xs text-text-muted leading-relaxed">
+                    Repeats in {quarterlyMonths(startDate)}.
+                  </p>
+                )}
                 <FormMessage />
               </FormItem>
             )}

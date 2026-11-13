@@ -2,14 +2,22 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import { format, subDays } from "date-fns";
 import { computeOccurrences } from "../lib/recurrence";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
 import {
   computeShareholderLoanDelta,
+  scrubTaxFields,
   shapeFromFields,
   toStorageFields,
 } from "../lib/transactionFields";
 
 const shapeArgs = {
-  kind: v.union(v.literal("income"), v.literal("expense"), v.literal("transfer")),
+  kind: v.union(
+    v.literal("income"),
+    v.literal("expense"),
+    v.literal("transfer"),
+    v.literal("tax_payment"),
+    v.literal("tax_refund")
+  ),
   realm: v.optional(v.union(v.literal("personal"), v.literal("business"), v.literal("rental"))),
   account: v.optional(v.union(v.literal("personal"), v.literal("business"))),
   from: v.optional(v.union(v.literal("personal"), v.literal("business"))),
@@ -27,6 +35,26 @@ function assertValidPurpose(fields: { from?: "personal" | "business"; to?: "pers
   }
 }
 
+// The form's zod schema checks this too, but a direct API call must not store a NaN/out-of-range
+// day: it would make computeOccurrences throw inside autoApplyDue and abort the cron for everyone.
+function assertValidAnchorDay(f: { frequency: string; anchorDay?: number }) {
+  if (f.anchorDay === undefined) return;
+  const [min, max] = f.frequency === "weekly" ? [0, 6] : [1, 31];
+  if (!Number.isInteger(f.anchorDay) || f.anchorDay < min || f.anchorDay > max) {
+    throw new Error(`anchorDay must be a whole number from ${min} to ${max}`);
+  }
+}
+
+// A rule carries no taxYear (each applied occurrence gets its own, from its date) — only the
+// category/property scrub applies.
+function ruleScrub(
+  shape: Parameters<typeof scrubTaxFields>[0],
+  f: { categoryId?: Id<"categories">; propertyId?: Id<"properties"> }
+) {
+  const { categoryId, propertyId } = scrubTaxFields(shape, { ...f, date: "2000-01-01" });
+  return { categoryId, propertyId };
+}
+
 const recurringArgs = {
   description: v.string(),
   amount: v.number(),
@@ -38,6 +66,7 @@ const recurringArgs = {
     v.literal("weekly"),
     v.literal("biweekly"),
     v.literal("monthly"),
+    v.literal("quarterly"),
     v.literal("yearly")
   ),
   anchorDay: v.optional(v.number()),
@@ -52,11 +81,13 @@ export const create = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthenticated");
     assertValidPurpose(args);
+    assertValidAnchorDay(args);
     const shape = shapeFromFields(args);
     return await ctx.db.insert("recurringTransactions", {
       userId: identity.tokenIdentifier,
       ...args,
       ...toStorageFields(shape),
+      ...ruleScrub(shape, args),
       isActive: true,
     });
   },
@@ -74,8 +105,13 @@ export const update = mutation({
     if (!rule || rule.userId !== identity.tokenIdentifier) throw new Error("Not found");
     const { recurringTransactionId, ...fields } = args;
     assertValidPurpose(fields);
+    assertValidAnchorDay(fields);
     const shape = shapeFromFields(fields);
-    await ctx.db.patch(recurringTransactionId, { ...fields, ...toStorageFields(shape) });
+    await ctx.db.patch(recurringTransactionId, {
+      ...fields,
+      ...toStorageFields(shape),
+      ...ruleScrub(shape, fields),
+    });
   },
 });
 
@@ -144,8 +180,7 @@ export const applyOccurrence = mutation({
       description: rule.description,
       notes: args.notes ?? rule.notes,
       ...toStorageFields(shape),
-      categoryId: rule.categoryId,
-      propertyId: rule.propertyId,
+      ...scrubTaxFields(shape, { categoryId: rule.categoryId, propertyId: rule.propertyId, date: args.scheduledDate }),
       shareholderLoanDelta,
     });
 
@@ -253,8 +288,7 @@ export const autoApplyDue = internalMutation({
           description: rule.description,
           notes: rule.notes,
           ...toStorageFields(shape),
-          categoryId: rule.categoryId,
-          propertyId: rule.propertyId,
+          ...scrubTaxFields(shape, { categoryId: rule.categoryId, propertyId: rule.propertyId, date: occ.date }),
           shareholderLoanDelta,
         });
 

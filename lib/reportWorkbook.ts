@@ -51,6 +51,33 @@ function addExpenseSheet(
   styleHeader(worksheet);
 }
 
+function addTaxSheet(workbook: ExcelJS.Workbook, tax: ExpenseBreakdown["tax"]) {
+  const worksheet = workbook.addWorksheet("Tax");
+  worksheet.columns = [
+    { header: "Date", key: "date", width: 12 },
+    { header: "Description", key: "description", width: 32 },
+    { header: "Type", key: "type", width: 34 },
+    { header: "Tax Year", key: "taxYear", width: 10 },
+    { header: "Paid", key: "paid", width: 14, style: { numFmt: CURRENCY_FORMAT } },
+    { header: "Refunded", key: "refunded", width: 14, style: { numFmt: CURRENCY_FORMAT } },
+    { header: "Notes", key: "notes", width: 30 },
+    { header: "Loan Impact", key: "loanImpact", width: 14, style: { numFmt: CURRENCY_FORMAT } },
+  ];
+  for (const row of byDate([...tax.business.rows, ...tax.personal.rows])) {
+    worksheet.addRow({
+      date: row.date,
+      description: row.description,
+      type: typeLabel(row),
+      taxYear: row.taxYear ?? "",
+      paid: row.kind === "tax_payment" ? row.amount : "",
+      refunded: row.kind === "tax_refund" ? row.amount : "",
+      notes: row.notes ?? "",
+      loanImpact: row.shareholderLoanDelta !== 0 ? row.shareholderLoanDelta : "",
+    });
+  }
+  styleHeader(worksheet);
+}
+
 function addRentalSheet(workbook: ExcelJS.Workbook, rows: RentalBreakdown["rows"]) {
   const worksheet = workbook.addWorksheet("Rental");
   worksheet.columns = [
@@ -123,6 +150,7 @@ export async function buildReportWorkbook({
   const workbook = new ExcelJS.Workbook();
   addExpenseSheet(workbook, "Personal", byDate([...expenseBreakdown.personalIncome.rows, ...expenseBreakdown.personal.rows]));
   addExpenseSheet(workbook, "Business", byDate([...expenseBreakdown.businessIncome.rows, ...expenseBreakdown.business.rows]));
+  addTaxSheet(workbook, expenseBreakdown.tax);
   addRentalSheet(workbook, rentalBreakdown.rows);
   addLoanSheet(workbook, loanLedger);
 

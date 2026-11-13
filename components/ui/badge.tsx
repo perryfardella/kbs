@@ -13,6 +13,8 @@ const badgeVariants = cva(
         business: "bg-[#6d28d9]/15 text-[#6d28d9]",
         transfer: "bg-[#9a3412]/15 text-[#9a3412]",
         rental:   "bg-[#065f46]/15 text-[#065f46]",
+        // Neutral slate: tax is neither income nor expense, so it takes no money colour.
+        tax:      "bg-[#475569]/15 text-[#475569]",
         accent:   "bg-accent/10 text-accent",
       },
     },

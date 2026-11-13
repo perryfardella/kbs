@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { LoanLedgerTable } from "@/components/LoanLedgerTable";
 import { PageHeader } from "@/components/PageHeader";
 import { buildReportWorkbook } from "@/lib/reportWorkbook";
+import { computeFiscalYear } from "@/lib/fiscalYear";
 import Link from "next/link";
 
 function formatCAD(amount: number): string {
@@ -21,26 +22,6 @@ function formatCAD(amount: number): string {
     currency: "CAD",
     minimumFractionDigits: 2,
   }).format(amount);
-}
-
-function computeFiscalYear(fiscalYearEnd: string): { startDate: string; endDate: string } {
-  const [endMonth, endDay] = fiscalYearEnd.split("-").map(Number);
-  const today = new Date();
-  const todayYear = today.getFullYear();
-  const thisYearEnd = new Date(todayYear, endMonth - 1, endDay);
-
-  if (today <= thisYearEnd) {
-    const endDate = `${todayYear}-${String(endMonth).padStart(2, "0")}-${String(endDay).padStart(2, "0")}`;
-    const prevEnd = new Date(todayYear - 1, endMonth - 1, endDay);
-    const startObj = new Date(prevEnd);
-    startObj.setDate(startObj.getDate() + 1);
-    return { startDate: startObj.toISOString().slice(0, 10), endDate };
-  } else {
-    const startObj = new Date(thisYearEnd);
-    startObj.setDate(startObj.getDate() + 1);
-    const endDate = `${todayYear + 1}-${String(endMonth).padStart(2, "0")}-${String(endDay).padStart(2, "0")}`;
-    return { startDate: startObj.toISOString().slice(0, 10), endDate };
-  }
 }
 
 export default function ReportsPage() {
@@ -169,6 +150,18 @@ export default function ReportsPage() {
               colour="text-badge-business"
             />
             <SummaryCard
+              label="Personal Income Tax (net)"
+              value={expenseBreakdown?.tax.personal.net}
+              isLoading={isLoading}
+              colour="text-text-primary"
+            />
+            <SummaryCard
+              label="Business Income Tax (net)"
+              value={expenseBreakdown?.tax.business.net}
+              isLoading={isLoading}
+              colour="text-text-primary"
+            />
+            <SummaryCard
               label="Net Rental"
               value={rentalBreakdown?.total.net}
               isLoading={isLoading}
@@ -213,6 +206,7 @@ export default function ReportsPage() {
                 emptyMessage="No personal expenses in this range."
               />
             </div>
+            <TaxSection tax={expenseBreakdown?.tax.personal} isLoading={isLoading} />
           </TabsContent>
 
           <TabsContent value="business" className="pt-3 space-y-4">
@@ -236,6 +230,7 @@ export default function ReportsPage() {
                 emptyMessage="No business expenses in this range."
               />
             </div>
+            <TaxSection tax={expenseBreakdown?.tax.business} isLoading={isLoading} />
           </TabsContent>
 
           <TabsContent value="rental" className="pt-3">
@@ -309,6 +304,39 @@ function SummaryCard({
         </p>
       )}
     </Card>
+  );
+}
+
+// Income tax paid/refunded for one realm. Shown apart from Income and Expenses because it
+// is neither — it never moves profit.
+function TaxSection({
+  tax,
+  isLoading,
+}: {
+  tax?: { paid: number; refunded: number; net: number };
+  isLoading: boolean;
+}) {
+  const lines = [
+    { label: "Tax paid", value: tax?.paid },
+    { label: "Tax refunded", value: tax?.refunded },
+    { label: "Net tax paid", value: tax?.net, strong: true },
+  ];
+  return (
+    <div className="space-y-2">
+      <p className="px-1 text-xs font-semibold text-text-muted uppercase tracking-wide">Income tax</p>
+      <ListContainer>
+        {lines.map((l) => (
+          <ListItem key={l.label} className="justify-between">
+            <span className={`text-sm ${l.strong ? "font-semibold text-text-primary" : "text-text-muted"}`}>{l.label}</span>
+            {isLoading || l.value === undefined ? (
+              <Skeleton className="h-4 w-16" />
+            ) : (
+              <span className="font-mono text-sm text-text-primary">{formatCAD(l.value)}</span>
+            )}
+          </ListItem>
+        ))}
+      </ListContainer>
+    </div>
   );
 }
 
